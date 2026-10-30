@@ -44,7 +44,7 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ${{ env.IMAGE }}:base-${{ github.sha }}
+          tags: ${{ env.IMAGE }}:neilflix-base-${{ github.sha }}
           build-args: |
             BUILD_REVISION=${{ github.sha }}
             BUILD_NUMBER=${{ github.run_number }}
@@ -59,9 +59,9 @@ jobs:
           platforms: linux/amd64
           push: true
           build-args: |
-            SILO_IMAGE=${{ env.IMAGE }}:base-${{ github.sha }}
+            SILO_IMAGE=${{ env.IMAGE }}:neilflix-base-${{ github.sha }}
           tags: |
-            ${{ env.IMAGE }}:aio
-            ${{ env.IMAGE }}:aio-${{ github.sha }}
+            ${{ env.IMAGE }}:neilflix
+            ${{ env.IMAGE }}:neilflix-${{ github.sha }}
           cache-from: type=gha,scope=aio
           cache-to: type=gha,scope=aio,mode=max
