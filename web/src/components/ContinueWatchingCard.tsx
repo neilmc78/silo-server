@@ -313,6 +313,7 @@ function ContinueWatchingCardView({ spoilerPrefs, ...props }: ContinueWatchingCa
             contentId={playableContentId}
             title={playTitle}
             type={card.type === "movie" ? "movie" : "episode"}
+            pickEdition={false}
             libraryId={props.libraryId}
           />
         ) : (

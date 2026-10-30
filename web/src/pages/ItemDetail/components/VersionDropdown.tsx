@@ -6,7 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { videoRangeLabel } from "@/lib/videoRange";
 import DetailPopover from "./DetailPopover";
-import { sortPlaybackVariantsByEditionPreference } from "./versionRankingUtils";
+import {
+  buildEditionDetail,
+  buildEditionOptions,
+  type EditionOption,
+  hasEditionChoice,
+} from "./editionOptions";
 import { buildDetailLine, buildQualitySummary, sortByResolution } from "./VersionFlyout";
 
 interface VersionDropdownProps {
@@ -14,14 +19,6 @@ interface VersionDropdownProps {
   playbackVariants?: PlaybackVariant[];
   selectedVersion: FileVersion | null;
   onSelectVersion: (version: FileVersion) => void;
-}
-
-interface EditionOption {
-  id: string;
-  label: string;
-  variant: PlaybackVariant;
-  defaultVersion: FileVersion;
-  versions: FileVersion[];
 }
 
 function VersionDropdown({
@@ -39,11 +36,7 @@ function VersionDropdown({
     [playbackVariants, versions],
   );
 
-  const hasNamedEditions = editionOptions.some((option) => option.variant.edition_key);
-  const showEditionDropdown =
-    editionOptions.length > 1 &&
-    new Set(editionOptions.map((option) => option.label.toLowerCase())).size > 1 &&
-    hasNamedEditions;
+  const showEditionDropdown = hasEditionChoice(editionOptions);
 
   const selectedEdition = showEditionDropdown
     ? resolveSelectedEditionOption(editionOptions, selectedVersion)
@@ -183,44 +176,6 @@ function buildVersionTriggerSummary(version: FileVersion): string {
   return buildQualitySummary(version) || buildDetailLine(version) || `Version ${version.file_id}`;
 }
 
-function buildEditionOptions(
-  playbackVariants: PlaybackVariant[] | undefined,
-  versions: FileVersion[],
-): EditionOption[] {
-  if (!playbackVariants || playbackVariants.length === 0) {
-    return [];
-  }
-
-  const orderedVariants = sortPlaybackVariantsByEditionPreference(playbackVariants);
-  const hasNamedEditions = orderedVariants.some((variant) => variant.edition_key);
-
-  return orderedVariants
-    .map((variant) => {
-      const firstPart = [...(variant.parts ?? [])].sort((a, b) => a.part_index - b.part_index)[0];
-      if (!firstPart) {
-        return null;
-      }
-
-      const partVersions = sortByResolution([...(firstPart.versions ?? [])]);
-      const defaultVersion =
-        (firstPart.default_file_id != null
-          ? versions.find((version) => version.file_id === firstPart.default_file_id)
-          : undefined) ?? partVersions[0];
-      if (!defaultVersion) {
-        return null;
-      }
-
-      return {
-        id: variant.variant_id,
-        label: buildEditionLabel(variant, hasNamedEditions),
-        variant,
-        defaultVersion,
-        versions: partVersions,
-      };
-    })
-    .filter((entry): entry is EditionOption => !!entry);
-}
-
 function resolveSelectedEditionOption(
   editionOptions: EditionOption[],
   selectedVersion: FileVersion | null,
@@ -241,41 +196,4 @@ function resolveSelectedEditionOption(
   }
 
   return editionOptions[0] ?? null;
-}
-
-function buildEditionLabel(variant: PlaybackVariant, hasNamedEditions: boolean): string {
-  if (variant.edition_raw?.trim()) {
-    return variant.edition_raw.trim();
-  }
-  if (variant.edition_key?.trim()) {
-    return humanizeEditionKey(variant.edition_key);
-  }
-  return hasNamedEditions ? "Standard" : "Edition";
-}
-
-function humanizeEditionKey(value: string): string {
-  return value
-    .split(/[_-]+/)
-    .filter(Boolean)
-    .map((part) => {
-      if (part.toLowerCase() === "imax") {
-        return "IMAX";
-      }
-      return `${part.charAt(0).toUpperCase()}${part.slice(1)}`;
-    })
-    .join(" ");
-}
-
-function buildEditionDetail(option: EditionOption): string {
-  const parts: string[] = [];
-  if (option.versions.length > 1) {
-    parts.push(`${option.versions.length} versions`);
-  }
-
-  const defaultSummary = buildQualitySummary(option.defaultVersion);
-  if (defaultSummary) {
-    parts.push(defaultSummary);
-  }
-
-  return parts.join(" · ");
 }
