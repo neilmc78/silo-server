@@ -69,6 +69,7 @@ import {
   ROOM_HELD_SEEK_TIMEOUT_MS,
 } from "../utils/pendingSeek";
 import { resolveVersionAudioLanguage } from "../utils/effectiveAudioLanguage";
+import { humanizeEditionKey } from "@/pages/ItemDetail/components/editionOptions";
 import { StartupGuard } from "../utils/startupGuard";
 import { isSafariBrowserV3, resolveHLSEngineV3 } from "../utils/hlsEngine";
 import { isFirefoxUserAgent } from "../utils/browser";
@@ -5572,7 +5573,7 @@ export function VideoPlayer({
             versions.length > 1
               ? versions.map((v) => ({
                   fileId: v.file_id,
-                  label: `${v.resolution} ${v.codec_video.toUpperCase()}${v.hdr ? " HDR" : ""}`,
+                  label: playerVersionLabel(v, versions),
                   // The server names the file it actually planned against; a
                   // fallback to an alternate version shows up here.
                   isCurrentSource: v.file_id === plan.effective_media_file_id,
@@ -5632,4 +5633,14 @@ export function VideoPlayer({
       )}
     </div>
   );
+}
+
+// playerVersionLabel names a version in the player's Version menu. When the
+// versions span editions, the edition leads, so two 1080p HEVC files of
+// different cuts can be told apart.
+function playerVersionLabel(version: PlayerFileVersion, versions: PlayerFileVersion[]): string {
+  const quality = `${version.resolution} ${version.codec_video.toUpperCase()}${version.hdr ? " HDR" : ""}`;
+  if (!versions.some((v) => v.edition_key)) return quality;
+  const edition = version.edition_key ? humanizeEditionKey(version.edition_key) : "Standard";
+  return `${edition} · ${quality}`;
 }
