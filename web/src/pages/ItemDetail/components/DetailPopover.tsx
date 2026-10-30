@@ -27,6 +27,8 @@ interface DetailPopoverProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   positionKey?: string | number | boolean;
+  /** Extra classes for the element that wraps the trigger and anchors the popover. */
+  triggerClassName?: string;
 }
 
 export default function DetailPopover({
@@ -36,6 +38,7 @@ export default function DetailPopover({
   open: controlledOpen,
   onOpenChange,
   positionKey,
+  triggerClassName,
 }: DetailPopoverProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
@@ -172,7 +175,10 @@ export default function DetailPopover({
 
   return (
     <>
-      <span ref={triggerRef} className="inline-flex max-w-full min-w-0 shrink">
+      <span
+        ref={triggerRef}
+        className={cn("inline-flex max-w-full min-w-0 shrink", triggerClassName)}
+      >
         {triggerWithState}
       </span>
       {open &&
