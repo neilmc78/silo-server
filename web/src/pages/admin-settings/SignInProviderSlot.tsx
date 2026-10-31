@@ -71,10 +71,29 @@ const PROTOCOL_EXAMPLES: Record<SignInMode, string> = {
  * it is the only one installed for that protocol, else the plugin's name.
  */
 function providerTitle(installation: PluginInstallation, all: PluginInstallation[]): string {
+  if (!isProtocolPlugin(installation)) return authProviderName(installation);
   const mode = signInModeOf(installation);
   const protocol = PROTOCOL_NAME[mode];
   const sameMode = all.filter((candidate) => signInModeOf(candidate) === mode).length;
   return protocol && sameMode === 1 ? protocol : authProviderName(installation);
+}
+
+// The first-party plugins that speak a protocol any compatible provider can
+// sit behind. Other sign-in plugins talk to one service of their own, such as
+// Plex, so the protocol's name, its provider examples and its client
+// registration step do not describe them.
+const PROTOCOL_PLUGIN_IDS = new Set(["silo.auth.oidc", "silo.auth.ldap"]);
+
+function isProtocolPlugin(installation: PluginInstallation): boolean {
+  return PROTOCOL_PLUGIN_IDS.has(installation.plugin_id);
+}
+
+/** The line under a provider's name on its choice card. */
+function providerDetail(installation: PluginInstallation): string {
+  if (isProtocolPlugin(installation)) {
+    return PROTOCOL_EXAMPLES[signInModeOf(installation)] || authProviderName(installation);
+  }
+  return installation.presentation?.summary?.trim() || authProviderName(installation);
 }
 
 type ProviderState = { word: string; tone: "ok" | "warn" | "off" };
@@ -499,7 +518,30 @@ function ProviderPanel({
   );
 
   const steps: { key: string; title: string; description?: string; body: ReactNode }[] = [];
-  if (mode === "oauth") {
+  if (mode === "oauth" && !isProtocolPlugin(installation)) {
+    // Nothing is registered at the provider, but it still sends people back
+    // to the server's public URL.
+    if (!publicUrlSet) {
+      steps.push({
+        key: "public-url",
+        title: "Set the server's public URL",
+        description: "The provider sends people back to this server after they sign in.",
+        body: (
+          <div className="py-3.5">
+            <SettingFieldStatus tone="warn">
+              <span>
+                Set it in{" "}
+                <Link to="/admin/settings/general" className="underline underline-offset-4">
+                  General settings
+                </Link>
+                .
+              </span>
+            </SettingFieldStatus>
+          </div>
+        ),
+      });
+    }
+  } else if (mode === "oauth") {
     steps.push({
       key: "register",
       title: "Register Silo at your provider",
@@ -941,7 +983,7 @@ export function SignInProviderSlot({
       return {
         id: installation.id as Selection,
         title: providerTitle(installation, candidates),
-        detail: PROTOCOL_EXAMPLES[signInModeOf(installation)] || authProviderName(installation),
+        detail: providerDetail(installation),
         state: providerState(installation, missingSignInSetup(layout)),
       };
     }),
