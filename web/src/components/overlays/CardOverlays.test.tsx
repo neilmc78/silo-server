@@ -83,7 +83,8 @@ describe("CardOverlays", () => {
 
   it("suppresses the text label when a wordmark icon already spells it", () => {
     const data = { ...SAMPLE_MOVIE_DATA, hdr: "HDR10", audio: "Atmos", video_codec: "AV1" };
-    for (const id of ["hdr", "audio", "video_codec"] as OverlayId[]) {
+    // Atmos has a bundled logo, which takes the wordmark's place.
+    for (const id of ["hdr", "video_codec"] as OverlayId[]) {
       const { container, unmount } = render(
         // pill prefers icons, so wordmarks resolve
         <CardOverlays data={data} prefs={prefsWithOnly(id, "pill")} />,
@@ -244,11 +245,20 @@ describe("CardOverlays", () => {
   it("keeps text where a format logo is not bundled, and writes the rating source as text with icons off", () => {
     const hdr = prefsWithOnly("hdr");
     hdr.items.hdr = { ...hdr.items.hdr, showIcon: true };
-    const { container: hdrBadge } = render(
-      <CardOverlays data={{ hdr: "DV HDR10+" }} prefs={hdr} />,
-    );
+    const { container: hdrBadge } = render(<CardOverlays data={{ hdr: "DV HDR10" }} prefs={hdr} />);
+    // Dolby Vision has a logo but HDR10 does not, so the badge keeps its text.
     expect(hdrBadge.querySelector("img")).toBeNull();
-    expect(badgeTexts(hdrBadge)).toEqual(["DV HDR10+"]);
+    expect(badgeTexts(hdrBadge)).toEqual(["DV HDR10"]);
+
+    const both = prefsWithOnly("hdr");
+    both.items.hdr = { ...both.items.hdr, showIcon: true };
+    const { container: logoBadge } = render(
+      <CardOverlays data={{ hdr: "DV HDR10+" }} prefs={both} />,
+    );
+    expect(Array.from(logoBadge.querySelectorAll("img"), (img) => img.alt)).toEqual([
+      "DV",
+      "HDR10+",
+    ]);
 
     const rating = prefsWithOnly("rating_tmdb");
     rating.items.rating_tmdb = { ...rating.items.rating_tmdb, showIcon: false };

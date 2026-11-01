@@ -31,3 +31,9 @@ Logos drawn on poster badges, bundled at build time by `src/lib/overlays/logos.t
 | `imax` | Editions named IMAX (edition badge) |
 
 A value made of two formats, such as Dolby Vision with HDR10+, needs both files; with either missing the badge keeps its text.
+
+## Sources
+
+- `ratings/`: from the Scryer project's overlay assets.
+- `formats/`: from [jmxd/Kometa](https://github.com/jmxd/Kometa) (`overlays/images`), cropped to the artwork. That repository states no licence. The marks belong to Dolby, DTS, IMAX and the HDR10+ licensing body.
+
