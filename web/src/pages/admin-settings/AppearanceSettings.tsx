@@ -30,12 +30,14 @@ import {
   OVERLAY_REGISTRY,
   isOverlayOffered,
   POSITION_OPTIONS,
+  SIZE_OPTIONS,
   PRESET_IDS,
   parseOverlayPrefs,
   serializeOverlayPrefs,
   type CardOverlayPrefs,
   type OverlayId,
   type OverlayPosition,
+  type OverlaySize,
   type PresetId,
 } from "@/lib/overlays";
 import { adminDefaultServerKey } from "@/lib/settingsAdminDefaults";
@@ -321,6 +323,26 @@ export default function AppearanceSettings() {
                   {PRESET_IDS.map((id) => (
                     <SelectItem key={id} value={id}>
                       {OVERLAY_PRESETS[id].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingFieldRow>
+            <SettingFieldRow
+              label="Badge size"
+              description="Default for people who have not chosen their own."
+            >
+              <Select
+                value={overlayPrefs.size ?? "medium"}
+                onValueChange={(v) => setOverlayPrefs({ ...overlayPrefs, size: v as OverlaySize })}
+              >
+                <SelectTrigger className={SETTINGS_CONTROL_WIDTH} aria-label="Badge size">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SIZE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

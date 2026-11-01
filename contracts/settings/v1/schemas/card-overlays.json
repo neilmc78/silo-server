@@ -12,6 +12,11 @@
       "type": "string",
       "enum": ["minimal", "classic", "vibrant", "pill", "square"]
     },
+    "size": {
+      "description": "Badge size relative to the preset's own. Absent means medium.",
+      "type": "string",
+      "enum": ["small", "medium", "large", "xlarge"]
+    },
     "order": {
       "description": "Explicit render order. Empty means use the registry's own order.",
       "type": "array",
@@ -30,7 +35,14 @@
           "enabled": { "type": "boolean" },
           "position": {
             "type": "string",
-            "enum": ["top-left", "top-right", "bottom-left", "bottom-right"]
+            "enum": [
+              "top-left",
+              "top-center",
+              "top-right",
+              "bottom-left",
+              "bottom-center",
+              "bottom-right"
+            ]
           },
           "accentColor": {
             "description": "Hex colour. Absent means the overlay's own default accent.",

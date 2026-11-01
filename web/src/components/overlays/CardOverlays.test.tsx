@@ -219,4 +219,56 @@ describe("CardOverlays", () => {
       );
     });
   });
+
+  it("colours a rating's score by how good it is and shows the source logo when asked", () => {
+    const cases: [number, string][] = [
+      [8.3, "rgb(70, 211, 105)"],
+      [6, "rgb(245, 179, 1)"],
+      [4.1, "rgb(239, 83, 80)"],
+    ];
+    for (const [score, color] of cases) {
+      const prefs = prefsWithOnly("rating_imdb");
+      prefs.items.rating_imdb = { ...prefs.items.rating_imdb, showIcon: true };
+      const { container, unmount } = render(
+        <CardOverlays data={{ rating_imdb: score }} prefs={prefs} />,
+      );
+      const badge = container.querySelector("[data-overlay-badge]")!;
+      expect(badge.querySelector("img")?.getAttribute("alt")).toBe("IMDb");
+      expect(badge.querySelector<HTMLElement>("span:last-child")?.style.color).toBe(color);
+      unmount();
+    }
+  });
+
+  it("keeps text where a format logo is not bundled, and writes the rating source as text with icons off", () => {
+    const hdr = prefsWithOnly("hdr");
+    hdr.items.hdr = { ...hdr.items.hdr, showIcon: true };
+    const { container: hdrBadge } = render(
+      <CardOverlays data={{ hdr: "DV HDR10+" }} prefs={hdr} />,
+    );
+    expect(hdrBadge.querySelector("img")).toBeNull();
+    expect(badgeTexts(hdrBadge)).toEqual(["DV HDR10+"]);
+
+    const rating = prefsWithOnly("rating_tmdb");
+    rating.items.rating_tmdb = { ...rating.items.rating_tmdb, showIcon: false };
+    const { container: ratingBadge } = render(
+      <CardOverlays data={{ rating_tmdb: 7.25 }} prefs={rating} />,
+    );
+    expect(ratingBadge.querySelector("img")).toBeNull();
+    expect(badgeTexts(ratingBadge)[0]).toMatch(/^TMDB\s*7/);
+  });
+
+  it("places centre badges between the corners and scales them with the size", () => {
+    const prefs = prefsWithOnly("resolution");
+    prefs.items.resolution = { ...prefs.items.resolution, position: "top-center" };
+    prefs.size = "large";
+    const { container } = render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />);
+    const stacks = container.querySelectorAll('[data-overlay-edge="top"] > div');
+    expect(stacks).toHaveLength(3);
+    expect(stacks[1]!.textContent).toBe("4K");
+    const medium = render(
+      <CardOverlays data={SAMPLE_MOVIE_DATA} prefs={{ ...prefs, size: undefined }} />,
+    ).container.querySelector<HTMLElement>("[data-overlay-badge]")!.style.fontSize;
+    const large = container.querySelector<HTMLElement>("[data-overlay-badge]")!.style.fontSize;
+    expect(large).not.toBe(medium);
+  });
 });

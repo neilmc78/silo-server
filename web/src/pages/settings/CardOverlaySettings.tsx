@@ -29,6 +29,7 @@ import {
   OVERLAY_PRESETS,
   OVERLAY_REGISTRY,
   POSITION_OPTIONS,
+  SIZE_OPTIONS,
   PRESET_IDS,
   type CardOverlayPrefs,
   type OverlayId,
@@ -52,8 +53,10 @@ const SHORTCUT_CHOICES: readonly { value: ShortcutChoice; label: string }[] = [
 
 const CORNER_CLASSES: Record<OverlayPosition, string> = {
   "top-left": "top-1 left-1",
+  "top-center": "top-1 left-1/2 -translate-x-1/2",
   "top-right": "top-1 right-1",
   "bottom-left": "bottom-1 left-1",
+  "bottom-center": "bottom-1 left-1/2 -translate-x-1/2",
   "bottom-right": "bottom-1 right-1",
 };
 
@@ -108,7 +111,7 @@ function BadgeAdjust({ overlayId, prefs, shortcutsOn, onChange }: BadgeAdjustPro
                   title={option.label}
                   onClick={() => onChange({ position: option.value })}
                   className={cn(
-                    "focus-visible:ring-ring absolute h-4 w-7 rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none",
+                    "focus-visible:ring-ring absolute h-4 w-5 rounded-sm transition-colors focus-visible:ring-2 focus-visible:outline-none",
                     CORNER_CLASSES[option.value],
                     active ? "bg-primary" : "bg-foreground/15 hover:bg-foreground/30",
                   )}
@@ -119,7 +122,7 @@ function BadgeAdjust({ overlayId, prefs, shortcutsOn, onChange }: BadgeAdjustPro
           <div className="space-y-1">
             <p className="text-sm font-medium">Corner</p>
             <p className="text-muted-foreground text-[13px] leading-relaxed">
-              Pick where it sits. Badges in the same corner stack.
+              Pick where it sits. Badges in the same spot stack.
             </p>
             {shortcutsOn && config.position.startsWith("bottom") ? (
               <p className="text-muted-foreground text-[13px] leading-relaxed">
@@ -388,6 +391,16 @@ export function CardOverlaySettings({ onShortcutsPicked }: { onShortcutsPicked?:
               <BadgeStylePicker
                 value={displayPrefs.preset}
                 onChange={(next) => setPrefs({ ...displayPrefs, preset: next })}
+              />
+            </div>
+            <div>
+              <SettingsSubheading>Size</SettingsSubheading>
+              <ChoiceButtons
+                label="Badge size"
+                hideLabel
+                value={displayPrefs.size ?? "medium"}
+                options={SIZE_OPTIONS}
+                onChange={(next) => setPrefs({ ...displayPrefs, size: next })}
               />
             </div>
             {/* Folded by category, each saying how many are on, so the page

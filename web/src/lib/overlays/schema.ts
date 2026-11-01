@@ -1,12 +1,13 @@
 import { PRESET_IDS } from "./presets";
 import { OVERLAY_MAP, OVERLAY_REGISTRY } from "./registry";
-import { OVERLAY_POSITIONS } from "./types";
+import { OVERLAY_POSITIONS, OVERLAY_SIZES } from "./types";
 import type {
   CardOverlayPrefs,
   OverlayData,
   OverlayId,
   OverlayItemConfig,
   OverlayPosition,
+  OverlaySize,
   PresetId,
 } from "./types";
 
@@ -39,6 +40,10 @@ function isValidPosition(v: unknown): v is OverlayPosition {
 
 function isValidPreset(v: unknown): v is PresetId {
   return typeof v === "string" && (PRESET_IDS as readonly string[]).includes(v);
+}
+
+function isValidSize(v: unknown): v is OverlaySize {
+  return typeof v === "string" && (OVERLAY_SIZES as readonly string[]).includes(v);
 }
 
 function isHexColor(v: unknown): v is string {
@@ -101,6 +106,7 @@ function parseV2(parsed: Record<string, unknown>): CardOverlayPrefs {
   return {
     version: 2,
     preset: isValidPreset(parsed.preset) ? parsed.preset : "classic",
+    ...(isValidSize(parsed.size) ? { size: parsed.size } : {}),
     order: Array.isArray(parsed.order) ? (parsed.order as unknown[]).filter(isKnownOverlayId) : [],
     items: buildItems(sourceItems),
   };
