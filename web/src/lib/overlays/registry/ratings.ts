@@ -7,16 +7,16 @@ import type { BadgePart, OverlayData, OverlayDef } from "../types";
 // is never shown without its source. With the badge's icon setting on, the
 // source's logo replaces the text mark when one is bundled
 // (web/src/assets/overlay-logos/ratings). The score itself is coloured by how
-// good it is.
+// good it is: dark text on a green, amber or red pill.
 function ratingLabel(mark: string, value: number | null | undefined, max: 10 | 100): string | null {
   if (value == null) return null;
   return `${mark} ${max === 100 ? formatPercent(value) : formatOutOfTen(value)}`;
 }
 
 // Score colours: green from 7/10 (70%), amber from 5.5/10 (55%), red below.
-export const SCORE_GOOD = "#46d369";
-export const SCORE_FAIR = "#f5b301";
-export const SCORE_POOR = "#ef5350";
+export const SCORE_GOOD = "#5cb85c";
+export const SCORE_FAIR = "#f5c518";
+export const SCORE_POOR = "#e53935";
 
 export function scoreColor(value: number, max: 10 | 100): string {
   const outOfTen = max === 100 ? value / 10 : value;
@@ -36,7 +36,7 @@ function ratingParts(
   const score: BadgePart = {
     kind: "text",
     text: max === 100 ? formatPercent(value) : formatOutOfTen(value),
-    color: scoreColor(value, max),
+    pill: scoreColor(value, max),
   };
   const logo = useLogos ? overlayLogo(`ratings/${source}`) : undefined;
   return [logo ? { kind: "logo", src: logo, alt: mark } : { kind: "text", text: mark }, score];

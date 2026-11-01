@@ -220,11 +220,11 @@ describe("CardOverlays", () => {
     });
   });
 
-  it("colours a rating's score by how good it is and shows the source logo when asked", () => {
+  it("puts a rating's score on a pill coloured by how good it is, beside the source logo when asked", () => {
     const cases: [number, string][] = [
-      [8.3, "rgb(70, 211, 105)"],
-      [6, "rgb(245, 179, 1)"],
-      [4.1, "rgb(239, 83, 80)"],
+      [8.3, "rgb(92, 184, 92)"],
+      [6, "rgb(245, 197, 24)"],
+      [4.1, "rgb(229, 57, 53)"],
     ];
     for (const [score, color] of cases) {
       const prefs = prefsWithOnly("rating_imdb");
@@ -234,7 +234,9 @@ describe("CardOverlays", () => {
       );
       const badge = container.querySelector("[data-overlay-badge]")!;
       expect(badge.querySelector("img")?.getAttribute("alt")).toBe("IMDb");
-      expect(badge.querySelector<HTMLElement>("span:last-child")?.style.color).toBe(color);
+      expect(badge.querySelector<HTMLElement>("span:last-child")?.style.backgroundColor).toBe(
+        color,
+      );
       unmount();
     }
   });

@@ -205,6 +205,9 @@ function labelRedundantWithIcon(badge: ResolvedBadge): boolean {
   return mark !== undefined && mark.toLowerCase() === badge.label.trim().toLowerCase();
 }
 
+// Text on a score pill: near-black reads on green, amber and red alike.
+const SCORE_PILL_TEXT = "#111111";
+
 // Logos sit at a height relative to the badge's text, so they follow the
 // preset and the size setting.
 function BadgeParts({ parts }: { parts: BadgePart[] }) {
@@ -220,8 +223,17 @@ function BadgeParts({ parts }: { parts: BadgePart[] }) {
     ) : (
       <span
         key={i}
-        className={i === parts.length - 1 ? "truncate" : "shrink-0"}
-        style={part.color ? { color: part.color } : undefined}
+        className={cn(
+          i === parts.length - 1 ? "truncate" : "shrink-0",
+          part.pill && "rounded-[0.3em] px-[0.35em] font-bold [text-shadow:none]",
+        )}
+        style={
+          part.pill
+            ? { backgroundColor: part.pill, color: SCORE_PILL_TEXT }
+            : part.color
+              ? { color: part.color }
+              : undefined
+        }
       >
         {part.text}
       </span>
