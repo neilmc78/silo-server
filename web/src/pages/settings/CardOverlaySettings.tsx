@@ -22,6 +22,7 @@ import {
   ACCENT_PALETTE,
   buildDefaultPrefs,
   CATEGORY_GROUPS,
+  badgeShowsIcon,
   getOverlayDef,
   getPreset,
   isOverlayOffered,
@@ -73,7 +74,7 @@ function BadgeAdjust({ overlayId, prefs, shortcutsOn, onChange }: BadgeAdjustPro
   const iconSwitchId = useId();
   if (!def) return null;
   const config = prefs.items[overlayId];
-  const showIcon = !!def.iconCapable && (config.showIcon ?? getPreset(prefs.preset).preferIcon);
+  const showIcon = badgeShowsIcon(def, config.showIcon, getPreset(prefs.preset));
   const color = config.accentColor;
 
   return (

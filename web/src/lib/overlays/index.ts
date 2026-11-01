@@ -33,7 +33,7 @@ export {
   storedOverlayIds,
 } from "./schema";
 export type { OverlayServerSupport } from "./schema";
-export { OVERLAY_PRESETS, PRESET_IDS, getPreset, ACCENT_PALETTE } from "./presets";
+export { OVERLAY_PRESETS, PRESET_IDS, getPreset, badgeShowsIcon, ACCENT_PALETTE } from "./presets";
 export { POSITION_OPTIONS, SIZE_OPTIONS, CATEGORY_GROUPS, CATEGORY_META } from "./ui-constants";
 export { OverlayIcon } from "./icons";
 export {

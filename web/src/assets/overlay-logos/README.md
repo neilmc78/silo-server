@@ -17,9 +17,8 @@ Logos drawn on poster badges, bundled at build time by `src/lib/overlays/logos.t
 |---|---|
 | `dolby-vision` | Dolby Vision (HDR badge, and the combined resolution + HDR badge) |
 | `hdr10plus` | HDR10+ |
-| `hdr10` | HDR10 |
 | `hlg` | HLG |
-| `hdr` | Other HDR |
+| `hdr` | HDR10 and other HDR |
 | `dolby-atmos` | Dolby Atmos (audio badge) |
 | `dolby-truehd` | Dolby TrueHD |
 | `dolby-digital-plus` | Dolby Digital Plus (E-AC-3) |

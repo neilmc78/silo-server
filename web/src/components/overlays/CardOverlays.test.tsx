@@ -41,8 +41,25 @@ function observePosterWidth(width: number) {
   return disconnect;
 }
 
-function badgeTexts(container: HTMLElement): (string | null)[] {
+function badgeTexts(container: ParentNode): (string | null)[] {
   return Array.from(container.querySelectorAll("span.inline-flex")).map((n) => n.textContent);
+}
+
+/** Each badge as read aloud: logos by their labels, text as written. */
+function badgeLabels(container: ParentNode): string[] {
+  return Array.from(container.querySelectorAll("span.inline-flex"), (badge) =>
+    Array.from(badge.children, (part) =>
+      part.getAttribute("role") === "img"
+        ? part.getAttribute("aria-label")
+        : part.tagName === "IMG"
+          ? part.getAttribute("alt")
+          : part.tagName === "svg"
+            ? null
+            : part.textContent,
+    )
+      .filter(Boolean)
+      .join(" "),
+  );
 }
 
 describe("CardOverlays", () => {
@@ -62,10 +79,10 @@ describe("CardOverlays", () => {
   it("suppresses standalone resolution and hdr when the combined badge is enabled", () => {
     const prefs = buildDefaultPrefs();
     prefs.items.resolution_hdr = { ...prefs.items.resolution_hdr, enabled: true };
-    const texts = badgeTexts(
+    const texts = badgeLabels(
       render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />).container,
     );
-    expect(texts).toContain("4K DV");
+    expect(texts).toContain("4K DV HDR10");
     expect(texts).not.toContain("4K");
     expect(texts).not.toContain("DV HDR10");
   });
@@ -75,16 +92,13 @@ describe("CardOverlays", () => {
     prefs.order = ["audio", "hdr", "resolution"];
     const { container } = render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />);
     const topLeftStack = container.querySelector("div.top-2 > div.items-start");
-    const texts = Array.from(topLeftStack?.querySelectorAll("span.inline-flex") ?? []).map(
-      (n) => n.textContent,
-    );
-    expect(texts).toEqual(["Atmos", "DV HDR10", "4K"]);
+    expect(badgeLabels(topLeftStack!)).toEqual(["Atmos", "DV HDR10", "4K"]);
   });
 
   it("suppresses the text label when a wordmark icon already spells it", () => {
     const data = { ...SAMPLE_MOVIE_DATA, hdr: "HDR10", audio: "Atmos", video_codec: "AV1" };
-    // Atmos has a bundled logo, which takes the wordmark's place.
-    for (const id of ["hdr", "video_codec"] as OverlayId[]) {
+    // HDR10 and Atmos have bundled logos, which take the wordmark's place.
+    for (const id of ["video_codec"] as OverlayId[]) {
       const { container, unmount } = render(
         // pill prefers icons, so wordmarks resolve
         <CardOverlays data={data} prefs={prefsWithOnly(id, "pill")} />,
@@ -96,13 +110,19 @@ describe("CardOverlays", () => {
     }
   });
 
-  it("keeps the label when the icon does not spell it (DV HDR10)", () => {
+  it("keeps the label beside the drawn icon when logos are turned off (DV HDR10)", () => {
+    const prefs = prefsWithOnly("hdr", "pill");
+    prefs.items.hdr = { ...prefs.items.hdr, showIcon: false };
+    const withoutLogos = render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />);
+    expect(badgeTexts(withoutLogos.container)).toEqual(["DV HDR10"]);
+    withoutLogos.unmount();
+
+    // Logos are on by default in every style, Minimal included.
     const { container } = render(
-      <CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefsWithOnly("hdr", "pill")} />,
+      <CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefsWithOnly("hdr", "minimal")} />,
     );
-    const badge = container.querySelector("span.inline-flex");
-    expect(badge?.textContent).toBe("DV HDR10");
-    expect(badge?.querySelector("svg")).toBeTruthy();
+    expect(badgeLabels(container)).toEqual(["DV HDR10"]);
+    expect(container.querySelectorAll('[role="img"]')).toHaveLength(2);
   });
 
   it("renders HLG as a plain text label without an HDR wordmark", () => {
@@ -245,20 +265,21 @@ describe("CardOverlays", () => {
   it("keeps text where a format logo is not bundled, and writes the rating source as text with icons off", () => {
     const hdr = prefsWithOnly("hdr");
     hdr.items.hdr = { ...hdr.items.hdr, showIcon: true };
-    const { container: hdrBadge } = render(<CardOverlays data={{ hdr: "DV HDR10" }} prefs={hdr} />);
-    // Dolby Vision has a logo but HDR10 does not, so the badge keeps its text.
+    const { container: hdrBadge } = render(<CardOverlays data={{ hdr: "DV HLG" }} prefs={hdr} />);
+    // Dolby Vision has a logo but HLG does not, so the badge keeps its text.
     expect(hdrBadge.querySelector("img")).toBeNull();
-    expect(badgeTexts(hdrBadge)).toEqual(["DV HDR10"]);
+    expect(badgeTexts(hdrBadge)).toEqual(["DV HLG"]);
 
     const both = prefsWithOnly("hdr");
     both.items.hdr = { ...both.items.hdr, showIcon: true };
     const { container: logoBadge } = render(
       <CardOverlays data={{ hdr: "DV HDR10+" }} prefs={both} />,
     );
-    expect(Array.from(logoBadge.querySelectorAll("img"), (img) => img.alt)).toEqual([
-      "DV",
-      "HDR10+",
-    ]);
+    expect(
+      Array.from(logoBadge.querySelectorAll('[role="img"]'), (logo) =>
+        logo.getAttribute("aria-label"),
+      ),
+    ).toEqual(["DV", "HDR10+"]);
 
     const rating = prefsWithOnly("rating_tmdb");
     rating.items.rating_tmdb = { ...rating.items.rating_tmdb, showIcon: false };

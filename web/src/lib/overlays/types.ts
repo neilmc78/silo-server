@@ -149,7 +149,9 @@ export interface OverlayPreset {
 // One piece of a badge drawn from parts: a logo, or text in an optional colour
 // or on a coloured pill (a rating's score, coloured by how good it is).
 export type BadgePart =
-  | { kind: "logo"; src: string; alt: string }
+  // tint draws a one-colour logo in the badge's text colour, so it reads on
+  // every style's background; without it the logo keeps its own colours.
+  | { kind: "logo"; src: string; alt: string; tint?: boolean }
   | { kind: "text"; text: string; color?: string; pill?: string };
 
 // Registry entry describing one overlay type.

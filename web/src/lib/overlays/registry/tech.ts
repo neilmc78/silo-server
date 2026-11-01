@@ -35,7 +35,8 @@ function videoCodecIcon(value: string | undefined): OverlayIconId | null {
 const HDR_LOGOS: Record<string, string> = {
   DV: "dolby-vision",
   "HDR10+": "hdr10plus",
-  HDR10: "hdr10",
+  // No separate HDR10 mark is bundled; like Kometa, HDR10 shows the HDR logo.
+  HDR10: "hdr",
   HLG: "hlg",
   HDR: "hdr",
 };
@@ -59,7 +60,7 @@ function logoParts(names: string[], logos: Record<string, string>): BadgePart[] 
     const key = logos[name];
     const src = key ? overlayLogo(`formats/${key}`) : undefined;
     if (!src) return null;
-    parts.push({ kind: "logo", src, alt: name });
+    parts.push({ kind: "logo", src, alt: name, tint: true });
   }
   return parts.length > 0 ? parts : null;
 }

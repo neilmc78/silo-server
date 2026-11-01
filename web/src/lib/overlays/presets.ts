@@ -1,4 +1,4 @@
-import type { OverlayPreset, PresetId } from "./types";
+import type { OverlayDef, OverlayPreset, PresetId } from "./types";
 
 // Presets are pure data — no runtime branching, no per-render computation.
 // badgeStyle() is called with the resolved accent color and returns the
@@ -157,3 +157,16 @@ export const ACCENT_PALETTE: { label: string; value: string }[] = [
   { label: "Slate", value: "#64748b" },
   { label: "White", value: "#ffffff" },
 ];
+
+// Whether a badge draws its icon or logo. The viewer's own choice wins. A
+// badge with logo artwork (ratings, HDR, audio, IMAX) shows it by default in
+// every style; other icons follow the style's preference.
+export function badgeShowsIcon(
+  def: OverlayDef,
+  itemShowIcon: boolean | undefined,
+  preset: OverlayPreset,
+): boolean {
+  if (!def.iconCapable) return false;
+  if (itemShowIcon !== undefined) return itemShowIcon;
+  return def.getParts ? true : preset.preferIcon;
+}

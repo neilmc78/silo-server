@@ -1,7 +1,13 @@
 import { useLayoutEffect, useMemo, useRef, type CSSProperties } from "react";
 
 import { useLanguageNamesLoaded } from "@/lib/languageNamesLoader";
-import { OverlayIcon, WORDMARK_TEXT, getPreset, orderedOverlaysForPosition } from "@/lib/overlays";
+import {
+  OverlayIcon,
+  WORDMARK_TEXT,
+  badgeShowsIcon,
+  getPreset,
+  orderedOverlaysForPosition,
+} from "@/lib/overlays";
 import { cn } from "@/lib/utils";
 import type {
   BadgePart,
@@ -184,7 +190,7 @@ function resolveBadge(
   if (!label) return null;
   const dynamicIcon = def.getIcon ? def.getIcon(data) : null;
   const candidateIcon = dynamicIcon ?? def.iconId ?? null;
-  const wantsIcon = def.iconCapable && (itemShowIcon ?? preset.preferIcon);
+  const wantsIcon = badgeShowsIcon(def, itemShowIcon, preset);
   const showIcon = wantsIcon && candidateIcon !== null;
   return {
     def,
@@ -208,19 +214,59 @@ function labelRedundantWithIcon(badge: ResolvedBadge): boolean {
 // Text on a score pill: near-black reads on green, amber and red alike.
 const SCORE_PILL_TEXT = "#111111";
 
-// Logos sit at a height relative to the badge's text, so they follow the
+// Logos are cropped tight to their artwork, so they are drawn at about the
+// height of the text's capitals rather than its full line, and follow the
 // preset and the size setting.
-function BadgeParts({ parts }: { parts: BadgePart[] }) {
-  return parts.map((part, i) =>
-    part.kind === "logo" ? (
-      <img
-        key={i}
-        src={part.src}
-        alt={part.alt}
-        draggable={false}
-        className="block h-[1.15em] w-auto max-w-none shrink-0"
-      />
-    ) : (
+function BadgeParts({ parts, shadow }: { parts: BadgePart[]; shadow?: OverlayShadow }) {
+  // A transparent-background style (Minimal) lifts its text off the poster
+  // with a shadow; tinted logos get the same lift.
+  const lift = shadow
+    ? `drop-shadow(${shadow.x}px ${shadow.y}px ${shadow.blur}px ${shadow.color})`
+    : undefined;
+  return parts.map((part, i) => {
+    if (part.kind === "logo" && part.tint) {
+      // The hidden image sizes the slot to the logo's proportions; the mask
+      // paints its shape in the badge's text colour.
+      return (
+        <span key={i} role="img" aria-label={part.alt} className="relative block min-w-0">
+          <img
+            src={part.src}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="invisible block h-[0.8em] w-auto max-w-full object-contain"
+          />
+          <span
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{
+              backgroundColor: "currentColor",
+              maskImage: `url("${part.src}")`,
+              maskSize: "contain",
+              maskRepeat: "no-repeat",
+              maskPosition: "center",
+              WebkitMaskImage: `url("${part.src}")`,
+              WebkitMaskSize: "contain",
+              WebkitMaskRepeat: "no-repeat",
+              WebkitMaskPosition: "center",
+              filter: lift,
+            }}
+          />
+        </span>
+      );
+    }
+    if (part.kind === "logo") {
+      return (
+        <img
+          key={i}
+          src={part.src}
+          alt={part.alt}
+          draggable={false}
+          className="block h-[0.8em] w-auto max-w-full min-w-0 object-contain object-left"
+        />
+      );
+    }
+    return (
       <span
         key={i}
         className={cn(
@@ -237,8 +283,8 @@ function BadgeParts({ parts }: { parts: BadgePart[] }) {
       >
         {part.text}
       </span>
-    ),
-  );
+    );
+  });
 }
 
 function BadgeStack({
@@ -260,9 +306,9 @@ function BadgeStack({
     <div
       className={cn(
         "flex min-w-0 flex-col",
-        align === "start" && "items-start justify-self-start",
-        align === "center" && "items-center justify-self-center",
-        align === "end" && "items-end justify-self-end",
+        align === "start" && "items-start",
+        align === "center" && "items-center",
+        align === "end" && "items-end",
         preset.gapClass,
       )}
       style={{ gap: length(preset.stackGap, POSTER_VARS.stackGap) }}
@@ -312,7 +358,7 @@ function BadgeStack({
             style={{ ...preset.badgeStyle(badge.accentColor), ...geometry }}
           >
             {badge.parts ? (
-              <BadgeParts parts={badge.parts} />
+              <BadgeParts parts={badge.parts} shadow={preset.textShadow} />
             ) : (
               <>
                 {badge.iconId && (
@@ -337,8 +383,10 @@ function BadgeStack({
 // centre and right stacks. The side columns share the width left over by the
 // centre (minmax(0,1fr) + truncate), so wide badges shrink instead of
 // overlapping, and the centre stays centred however full either side is.
+// Every stack stretches to its column so its badges (logos included) shrink
+// to fit rather than spilling into the next column.
 const EDGE_ROW_CLASS =
-  "pointer-events-none absolute inset-x-2 z-10 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-2";
+  "pointer-events-none absolute inset-x-2 z-10 grid grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)] gap-2";
 //
 // Stacking contract with the card quick actions (watched/favorite bottom-left,
 // more-menu bottom-right; web/src/components/MediaItemMenu.tsx): this whole
