@@ -1,6 +1,5 @@
 import { compactHdrSuffix, prettyResolution } from "@/lib/mediaFormat";
-import { overlayLogo } from "../logos";
-import type { BadgePart, OverlayDef, OverlayIconId } from "../types";
+import type { OverlayDef, OverlayIconId } from "../types";
 
 // Tech overlays — derived from the media file (codec, container, resolution,
 // audio properties). All data flows through OverlaySummary on the backend.
@@ -29,46 +28,6 @@ function videoCodecIcon(value: string | undefined): OverlayIconId | null {
   return "film";
 }
 
-// Format logos, keyed by the file name under
-// web/src/assets/overlay-logos/formats. A badge uses logos only when every
-// logo it needs is bundled; otherwise it keeps its text and drawn icons.
-const HDR_LOGOS: Record<string, string> = {
-  DV: "dolby-vision",
-  "HDR10+": "hdr10plus",
-  HDR10: "hdr10",
-  HLG: "hlg",
-  HDR: "hdr",
-};
-
-const AUDIO_LOGOS: Record<string, string> = {
-  Atmos: "dolby-atmos",
-  TrueHD: "dolby-truehd",
-  "DTS-HD": "dts-hd",
-  DTS: "dts",
-  EAC3: "dolby-digital-plus",
-  AC3: "dolby-digital",
-  AAC: "aac",
-  FLAC: "flac",
-};
-
-// logoParts turns format names into logo parts, or null when any is unknown
-// or has no bundled file. Values like "DV HDR10+" name two formats.
-function logoParts(names: string[], logos: Record<string, string>): BadgePart[] | null {
-  const parts: BadgePart[] = [];
-  for (const name of names) {
-    const key = logos[name];
-    const src = key ? overlayLogo(`formats/${key}`) : undefined;
-    if (!src) return null;
-    parts.push({ kind: "logo", src, alt: name });
-  }
-  return parts.length > 0 ? parts : null;
-}
-
-function hdrParts(value: string | undefined, useLogos: boolean): BadgePart[] | null {
-  if (!useLogos || !value) return null;
-  return logoParts(value.split(" "), HDR_LOGOS);
-}
-
 export const TECH_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "resolution",
@@ -91,7 +50,6 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     iconCapable: true,
     getValue: (d) => d.hdr ?? null,
     getIcon: (d) => hdrIcon(d.hdr),
-    getParts: (d, useLogos) => hdrParts(d.hdr, useLogos),
   },
   {
     id: "resolution_hdr",
@@ -111,11 +69,6 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     // Only the DV circle mark works next to a combined label; a wordmark
     // (HDR10) would visually duplicate the label's HDR suffix.
     getIcon: (d) => (d.hdr?.includes("DV") ? "dolby-vision" : null),
-    getParts: (d, useLogos) => {
-      const res = prettyResolution(d.resolution);
-      const logos = hdrParts(d.hdr, useLogos);
-      return res && logos ? [{ kind: "text", text: res }, ...logos] : null;
-    },
   },
   {
     id: "audio",
@@ -127,7 +80,6 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     iconCapable: true,
     getValue: (d) => d.audio ?? null,
     getIcon: (d) => audioIcon(d.audio),
-    getParts: (d, useLogos) => (useLogos && d.audio ? logoParts([d.audio], AUDIO_LOGOS) : null),
   },
   {
     id: "audio_channels",
@@ -190,13 +142,8 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     description: "Edition label from the best available media version",
     defaultPosition: "bottom-left",
     defaultEnabled: false,
-    iconCapable: true,
+    iconCapable: false,
     getValue: (d) => d.edition ?? null,
-    // An IMAX edition shows the IMAX logo when one is bundled.
-    getParts: (d, useLogos) =>
-      useLogos && d.edition && /\bimax\b/i.test(d.edition)
-        ? logoParts(["IMAX"], { IMAX: "imax" })
-        : null,
   },
   {
     id: "multi_audio",
