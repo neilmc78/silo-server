@@ -1,9 +1,10 @@
-import { useLayoutEffect, useRef, type CSSProperties } from "react";
+import { useLayoutEffect, useMemo, useRef, type CSSProperties } from "react";
 
 import { useLanguageNamesLoaded } from "@/lib/languageNamesLoader";
 import { OverlayIcon, WORDMARK_TEXT, getPreset, orderedOverlaysForPosition } from "@/lib/overlays";
 import { cn } from "@/lib/utils";
 import type {
+  BadgePart,
   CardOverlayPrefs,
   OverlayData,
   OverlayDef,
@@ -11,7 +12,33 @@ import type {
   OverlayPosition,
   OverlayPreset,
   OverlayShadow,
+  OverlaySize,
 } from "@/lib/overlays";
+
+// How much bigger or smaller than the preset's own each size draws a badge.
+const SIZE_SCALE: Record<OverlaySize, number> = {
+  small: 0.85,
+  medium: 1,
+  large: 1.2,
+  xlarge: 1.45,
+};
+
+// scaledPreset is the preset with its badge geometry multiplied by the size.
+// Edge insets stay put: a bigger badge still sits the same distance from the
+// poster's edge.
+function scaledPreset(preset: OverlayPreset, size: OverlaySize | undefined): OverlayPreset {
+  const scale = SIZE_SCALE[size ?? "medium"];
+  if (scale === 1) return preset;
+  return {
+    ...preset,
+    fontSize: preset.fontSize * scale,
+    paddingInline: preset.paddingInline * scale,
+    paddingBlock: preset.paddingBlock * scale,
+    iconSize: preset.iconSize * scale,
+    iconGap: preset.iconGap * scale,
+    stackGap: preset.stackGap * scale,
+  };
+}
 
 // Corner stacks render at most this many badges; anything further down the
 // user's order is dropped rather than colliding with the opposite corner.
@@ -141,6 +168,9 @@ interface ResolvedBadge {
   label: string;
   accentColor: string | undefined;
   iconId: OverlayIconId | null;
+  // Set for badges drawn from parts (a logo and a coloured score); they
+  // replace the icon and label.
+  parts: BadgePart[] | null;
 }
 
 function resolveBadge(
@@ -154,7 +184,8 @@ function resolveBadge(
   if (!label) return null;
   const dynamicIcon = def.getIcon ? def.getIcon(data) : null;
   const candidateIcon = dynamicIcon ?? def.iconId ?? null;
-  const showIcon = def.iconCapable && candidateIcon !== null && (itemShowIcon ?? preset.preferIcon);
+  const wantsIcon = def.iconCapable && (itemShowIcon ?? preset.preferIcon);
+  const showIcon = wantsIcon && candidateIcon !== null;
   return {
     def,
     label,
@@ -162,6 +193,7 @@ function resolveBadge(
     // that needs attention) comes before the badge's default.
     accentColor: itemAccent ?? def.getAccent?.(data) ?? def.defaultAccent,
     iconId: showIcon ? candidateIcon : null,
+    parts: def.getParts?.(data, wantsIcon) ?? null,
   };
 }
 
@@ -173,6 +205,42 @@ function labelRedundantWithIcon(badge: ResolvedBadge): boolean {
   return mark !== undefined && mark.toLowerCase() === badge.label.trim().toLowerCase();
 }
 
+// Text on a score pill: near-black reads on green, amber and red alike.
+const SCORE_PILL_TEXT = "#111111";
+
+// Logos sit at a height relative to the badge's text, so they follow the
+// preset and the size setting.
+function BadgeParts({ parts }: { parts: BadgePart[] }) {
+  return parts.map((part, i) =>
+    part.kind === "logo" ? (
+      <img
+        key={i}
+        src={part.src}
+        alt={part.alt}
+        draggable={false}
+        className="block h-[1.15em] w-auto max-w-none shrink-0"
+      />
+    ) : (
+      <span
+        key={i}
+        className={cn(
+          i === parts.length - 1 ? "truncate" : "shrink-0",
+          part.pill && "rounded-[0.3em] px-[0.35em] font-bold [text-shadow:none]",
+        )}
+        style={
+          part.pill
+            ? { backgroundColor: part.pill, color: SCORE_PILL_TEXT }
+            : part.color
+              ? { color: part.color }
+              : undefined
+        }
+      >
+        {part.text}
+      </span>
+    ),
+  );
+}
+
 function BadgeStack({
   badges,
   align,
@@ -180,7 +248,7 @@ function BadgeStack({
   scalingMode,
 }: {
   badges: ResolvedBadge[];
-  align: "start" | "end";
+  align: "start" | "center" | "end";
   preset: OverlayPreset;
   scalingMode: ScalingMode;
 }) {
@@ -190,7 +258,13 @@ function BadgeStack({
 
   return (
     <div
-      className={`flex min-w-0 flex-col ${align === "start" ? "items-start" : "items-end"} ${preset.gapClass}`}
+      className={cn(
+        "flex min-w-0 flex-col",
+        align === "start" && "items-start justify-self-start",
+        align === "center" && "items-center justify-self-center",
+        align === "end" && "items-end justify-self-end",
+        preset.gapClass,
+      )}
       style={{ gap: length(preset.stackGap, POSTER_VARS.stackGap) }}
     >
       {badges.map((badge) => {
@@ -237,15 +311,21 @@ function BadgeStack({
             className={`inline-flex max-w-full items-center gap-1 ${preset.badgeClass}`}
             style={{ ...preset.badgeStyle(badge.accentColor), ...geometry }}
           >
-            {badge.iconId && (
-              <OverlayIcon
-                iconId={badge.iconId}
-                size={preset.iconSize}
-                cssSize={length(preset.iconSize, POSTER_VARS.iconSize)}
-                className="shrink-0"
-              />
+            {badge.parts ? (
+              <BadgeParts parts={badge.parts} />
+            ) : (
+              <>
+                {badge.iconId && (
+                  <OverlayIcon
+                    iconId={badge.iconId}
+                    size={preset.iconSize}
+                    cssSize={length(preset.iconSize, POSTER_VARS.iconSize)}
+                    className="shrink-0"
+                  />
+                )}
+                {!labelRedundantWithIcon(badge) && <span className="truncate">{badge.label}</span>}
+              </>
             )}
-            {!labelRedundantWithIcon(badge) && <span className="truncate">{badge.label}</span>}
           </span>
         );
       })}
@@ -253,9 +333,12 @@ function BadgeStack({
   );
 }
 
-// Each card edge renders as ONE flex row holding the left and right corner
-// stacks. Sharing a row lets flexbox divide the card width between opposing
-// corners (min-w-0 + truncate), so wide badges shrink instead of overlapping.
+// Each card edge renders as ONE three-column grid row holding the left,
+// centre and right stacks. The side columns share the width left over by the
+// centre (minmax(0,1fr) + truncate), so wide badges shrink instead of
+// overlapping, and the centre stays centred however full either side is.
+const EDGE_ROW_CLASS =
+  "pointer-events-none absolute inset-x-2 z-10 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-2";
 //
 // Stacking contract with the card quick actions (watched/favorite bottom-left,
 // more-menu bottom-right; web/src/components/MediaItemMenu.tsx): this whole
@@ -276,7 +359,10 @@ export default function CardOverlays({
   // until it arrives; this re-renders the card when it does. Cards without the
   // badge skip the re-render.
   useLanguageNamesLoaded(prefs.items.original_language?.enabled === true);
-  const preset = getPreset(prefs.preset);
+  const preset = useMemo(
+    () => scaledPreset(getPreset(prefs.preset), prefs.size),
+    [prefs.preset, prefs.size],
+  );
   const resolve = (pos: OverlayPosition): ResolvedBadge[] =>
     orderedOverlaysForPosition(prefs, pos)
       .map((def) => {
@@ -287,8 +373,10 @@ export default function CardOverlays({
       .slice(0, MAX_BADGES_PER_CORNER);
 
   const topLeft = resolve("top-left");
+  const topCenter = resolve("top-center");
   const topRight = resolve("top-right");
   const bottomLeft = resolve("bottom-left");
+  const bottomCenter = resolve("bottom-center");
   const bottomRight = resolve("bottom-right");
   const wide = variant === "wide";
   const scalingMode: ScalingMode = wide
@@ -345,17 +433,18 @@ export default function CardOverlays({
       data-card-overlays={variant}
       className="@container/card-overlays pointer-events-none absolute inset-0 z-10"
     >
-      {(topLeft.length > 0 || topRight.length > 0) && (
+      {(topLeft.length > 0 || topCenter.length > 0 || topRight.length > 0) && (
         <div
           data-overlay-edge="top"
-          className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-start justify-between gap-2"
+          className={cn(EDGE_ROW_CLASS, "top-2 items-start")}
           style={{ top: edgeInset, right: edgeInset, left: edgeInset, gap: edgeGap }}
         >
           <BadgeStack badges={topLeft} align="start" preset={preset} scalingMode={scalingMode} />
+          <BadgeStack badges={topCenter} align="center" preset={preset} scalingMode={scalingMode} />
           <BadgeStack badges={topRight} align="end" preset={preset} scalingMode={scalingMode} />
         </div>
       )}
-      {(bottomLeft.length > 0 || bottomRight.length > 0) && (
+      {(bottomLeft.length > 0 || bottomCenter.length > 0 || bottomRight.length > 0) && (
         /* Bottom badges anchor flush in the corners with the same inset as the
            top row; card actions cover them by design (see above). The single
            exception is a watch-progress bar, which lives in this same edge
@@ -363,13 +452,16 @@ export default function CardOverlays({
            one lift the row by one edge step. */
         <div
           data-overlay-edge="bottom"
-          className={cn(
-            "pointer-events-none absolute inset-x-2 bottom-2 z-10 flex items-end justify-between gap-2",
-            hasProgressBar && "mb-2",
-          )}
+          className={cn(EDGE_ROW_CLASS, "bottom-2 items-end", hasProgressBar && "mb-2")}
           style={{ right: edgeInset, bottom: edgeInset, left: edgeInset, gap: edgeGap }}
         >
           <BadgeStack badges={bottomLeft} align="start" preset={preset} scalingMode={scalingMode} />
+          <BadgeStack
+            badges={bottomCenter}
+            align="center"
+            preset={preset}
+            scalingMode={scalingMode}
+          />
           <BadgeStack badges={bottomRight} align="end" preset={preset} scalingMode={scalingMode} />
         </div>
       )}

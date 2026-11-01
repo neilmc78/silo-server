@@ -1,13 +1,27 @@
-import { OVERLAY_CATEGORIES, type OverlayCategory, type OverlayPosition } from "./types";
+import {
+  OVERLAY_CATEGORIES,
+  type OverlayCategory,
+  type OverlayPosition,
+  type OverlaySize,
+} from "./types";
 
 // Shared UI metadata so user-facing and admin settings stay in sync. These
 // labels are presentational only; the canonical enums live in types.ts.
 
 export const POSITION_OPTIONS: { value: OverlayPosition; label: string }[] = [
   { value: "top-left", label: "Top Left" },
+  { value: "top-center", label: "Top Centre" },
   { value: "top-right", label: "Top Right" },
   { value: "bottom-left", label: "Bottom Left" },
+  { value: "bottom-center", label: "Bottom Centre" },
   { value: "bottom-right", label: "Bottom Right" },
+];
+
+export const SIZE_OPTIONS: { value: OverlaySize; label: string }[] = [
+  { value: "small", label: "Small" },
+  { value: "medium", label: "Medium" },
+  { value: "large", label: "Large" },
+  { value: "xlarge", label: "Extra large" },
 ];
 
 interface CategoryMeta {

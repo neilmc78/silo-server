@@ -4,6 +4,7 @@
 
 export type {
   AccentStrategy,
+  BadgePart,
   CardOverlayPrefs,
   OverlayCategory,
   OverlayData,
@@ -11,6 +12,7 @@ export type {
   OverlayIconId,
   OverlayItemConfig,
   OverlayPosition,
+  OverlaySize,
   OverlayPreset,
   OverlayShadow,
   OverlayId,
@@ -18,7 +20,7 @@ export type {
 } from "./types";
 
 export { OVERLAY_REGISTRY, OVERLAY_MAP, getOverlayDef, isOverlayOffered } from "./registry";
-export { OVERLAY_POSITIONS, OVERLAY_CATEGORIES, WORDMARK_TEXT } from "./types";
+export { OVERLAY_POSITIONS, OVERLAY_SIZES, OVERLAY_CATEGORIES, WORDMARK_TEXT } from "./types";
 export {
   buildDefaultPrefs,
   parseOverlayPrefs,
@@ -32,7 +34,7 @@ export {
 } from "./schema";
 export type { OverlayServerSupport } from "./schema";
 export { OVERLAY_PRESETS, PRESET_IDS, getPreset, ACCENT_PALETTE } from "./presets";
-export { POSITION_OPTIONS, CATEGORY_GROUPS, CATEGORY_META } from "./ui-constants";
+export { POSITION_OPTIONS, SIZE_OPTIONS, CATEGORY_GROUPS, CATEGORY_META } from "./ui-constants";
 export { OverlayIcon } from "./icons";
 export {
   overlayDataFromBrowseItem,
@@ -49,3 +51,4 @@ export {
 } from "./sample-data";
 export type { OverlayPreviewVariant } from "./sample-data";
 export { ATTENTION_ACCENT } from "./registry/ribbons";
+export { overlayLogo } from "./logos";

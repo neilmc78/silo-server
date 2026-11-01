@@ -1,7 +1,14 @@
 import type { CSSProperties } from "react";
 
 // Position on the poster card where a badge group is anchored.
-export const OVERLAY_POSITIONS = ["top-left", "top-right", "bottom-left", "bottom-right"] as const;
+export const OVERLAY_POSITIONS = [
+  "top-left",
+  "top-center",
+  "top-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
+] as const;
 export type OverlayPosition = (typeof OVERLAY_POSITIONS)[number];
 
 // Logical groupings used by the settings UI to organize controls.
@@ -92,10 +99,15 @@ export interface OverlayItemConfig {
 
 export type PresetId = "minimal" | "classic" | "vibrant" | "pill" | "square";
 
+// Badge size relative to the preset's own; absent means medium.
+export const OVERLAY_SIZES = ["small", "medium", "large", "xlarge"] as const;
+export type OverlaySize = (typeof OVERLAY_SIZES)[number];
+
 // Versioned root document stored under user_settings.card_overlays.
 export interface CardOverlayPrefs {
   version: 2;
   preset: PresetId;
+  size?: OverlaySize; // absent = medium
   order: OverlayId[]; // empty = use registry order
   items: Record<OverlayId, OverlayItemConfig>;
 }
@@ -134,6 +146,12 @@ export interface OverlayPreset {
   accentStrategy: AccentStrategy;
 }
 
+// One piece of a badge drawn from parts: a logo, or text in an optional colour
+// or on a coloured pill (a rating's score, coloured by how good it is).
+export type BadgePart =
+  | { kind: "logo"; src: string; alt: string }
+  | { kind: "text"; text: string; color?: string; pill?: string };
+
 // Registry entry describing one overlay type.
 export interface OverlayDef {
   id: OverlayId;
@@ -157,6 +175,9 @@ export interface OverlayDef {
   // Accent by data, used when the viewer has not picked an accent for the
   // badge; null falls back to defaultAccent.
   getAccent?: (data: OverlayData) => string | null;
+  // The badge as parts, for badges that mix logos and coloured text. useLogos
+  // follows the badge's icon setting; null falls back to getValue and icons.
+  getParts?: (data: OverlayData, useLogos: boolean) => BadgePart[] | null;
 }
 
 // Typed icon identifiers — every icon used anywhere must be in this union.
