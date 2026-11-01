@@ -1041,6 +1041,7 @@ var cardOverlayIDs = map[string]bool{
 var (
 	cardOverlayPositions = map[string]bool{
 		"top-left": true, "top-center": true, "top-right": true,
+		"middle-left": true, "middle-right": true,
 		"bottom-left": true, "bottom-center": true, "bottom-right": true,
 	}
 	cardOverlayAccent = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)

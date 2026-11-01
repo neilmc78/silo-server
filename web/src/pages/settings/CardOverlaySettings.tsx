@@ -56,6 +56,8 @@ const CORNER_CLASSES: Record<OverlayPosition, string> = {
   "top-left": "top-1 left-1",
   "top-center": "top-1 left-1/2 -translate-x-1/2",
   "top-right": "top-1 right-1",
+  "middle-left": "top-1/2 left-1 -translate-y-1/2",
+  "middle-right": "top-1/2 right-1 -translate-y-1/2",
   "bottom-left": "bottom-1 left-1",
   "bottom-center": "bottom-1 left-1/2 -translate-x-1/2",
   "bottom-right": "bottom-1 right-1",

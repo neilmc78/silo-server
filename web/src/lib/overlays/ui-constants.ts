@@ -12,6 +12,8 @@ export const POSITION_OPTIONS: { value: OverlayPosition; label: string }[] = [
   { value: "top-left", label: "Top Left" },
   { value: "top-center", label: "Top Centre" },
   { value: "top-right", label: "Top Right" },
+  { value: "middle-left", label: "Middle Left" },
+  { value: "middle-right", label: "Middle Right" },
   { value: "bottom-left", label: "Bottom Left" },
   { value: "bottom-center", label: "Bottom Centre" },
   { value: "bottom-right", label: "Bottom Right" },

@@ -290,7 +290,7 @@ describe("CardOverlays", () => {
     expect(badgeTexts(ratingBadge)[0]).toMatch(/^TMDB\s*7/);
   });
 
-  it("places centre badges between the corners and scales them with the size", () => {
+  it("places centre and middle badges between the corners and scales them with the size", () => {
     const prefs = prefsWithOnly("resolution");
     prefs.items.resolution = { ...prefs.items.resolution, position: "top-center" };
     prefs.size = "large";
@@ -303,5 +303,12 @@ describe("CardOverlays", () => {
     ).container.querySelector<HTMLElement>("[data-overlay-badge]")!.style.fontSize;
     const large = container.querySelector<HTMLElement>("[data-overlay-badge]")!.style.fontSize;
     expect(large).not.toBe(medium);
+
+    const middle = prefsWithOnly("resolution");
+    middle.items.resolution = { ...middle.items.resolution, position: "middle-right" };
+    const row = render(
+      <CardOverlays data={SAMPLE_MOVIE_DATA} prefs={middle} />,
+    ).container.querySelector('[data-overlay-edge="middle"]');
+    expect(row?.lastElementChild?.textContent).toBe("4K");
   });
 });

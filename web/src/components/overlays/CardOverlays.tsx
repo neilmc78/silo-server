@@ -423,6 +423,8 @@ export default function CardOverlays({
   const topLeft = resolve("top-left");
   const topCenter = resolve("top-center");
   const topRight = resolve("top-right");
+  const middleLeft = resolve("middle-left");
+  const middleRight = resolve("middle-right");
   const bottomLeft = resolve("bottom-left");
   const bottomCenter = resolve("bottom-center");
   const bottomRight = resolve("bottom-right");
@@ -490,6 +492,19 @@ export default function CardOverlays({
           <BadgeStack badges={topLeft} align="start" preset={preset} scalingMode={scalingMode} />
           <BadgeStack badges={topCenter} align="center" preset={preset} scalingMode={scalingMode} />
           <BadgeStack badges={topRight} align="end" preset={preset} scalingMode={scalingMode} />
+        </div>
+      )}
+      {(middleLeft.length > 0 || middleRight.length > 0) && (
+        /* The middle row sits on the poster's vertical centre, with the same
+           three columns as the edges so its sides cannot overlap. */
+        <div
+          data-overlay-edge="middle"
+          className={cn(EDGE_ROW_CLASS, "top-1/2 -translate-y-1/2 items-center")}
+          style={{ right: edgeInset, left: edgeInset, gap: edgeGap }}
+        >
+          <BadgeStack badges={middleLeft} align="start" preset={preset} scalingMode={scalingMode} />
+          <div />
+          <BadgeStack badges={middleRight} align="end" preset={preset} scalingMode={scalingMode} />
         </div>
       )}
       {(bottomLeft.length > 0 || bottomCenter.length > 0 || bottomRight.length > 0) && (

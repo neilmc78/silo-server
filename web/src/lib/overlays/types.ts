@@ -5,6 +5,8 @@ export const OVERLAY_POSITIONS = [
   "top-left",
   "top-center",
   "top-right",
+  "middle-left",
+  "middle-right",
   "bottom-left",
   "bottom-center",
   "bottom-right",
