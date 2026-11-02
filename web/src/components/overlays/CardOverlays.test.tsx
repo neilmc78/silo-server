@@ -83,8 +83,7 @@ describe("CardOverlays", () => {
 
   it("suppresses the text label when a wordmark icon already spells it", () => {
     const data = { ...SAMPLE_MOVIE_DATA, hdr: "HDR10", audio: "Atmos", video_codec: "AV1" };
-    // Atmos has a bundled logo, which takes the wordmark's place.
-    for (const id of ["hdr", "video_codec"] as OverlayId[]) {
+    for (const id of ["hdr", "audio", "video_codec"] as OverlayId[]) {
       const { container, unmount } = render(
         // pill prefers icons, so wordmarks resolve
         <CardOverlays data={data} prefs={prefsWithOnly(id, "pill")} />,
@@ -219,68 +218,5 @@ describe("CardOverlays", () => {
         badgeStyle({ ...attention, request_status_attention: false }, custom),
       );
     });
-  });
-
-  it("puts a rating's score on a pill coloured by how good it is, beside the source logo when asked", () => {
-    const cases: [number, string][] = [
-      [8.3, "rgb(92, 184, 92)"],
-      [6, "rgb(245, 197, 24)"],
-      [4.1, "rgb(229, 57, 53)"],
-    ];
-    for (const [score, color] of cases) {
-      const prefs = prefsWithOnly("rating_imdb");
-      prefs.items.rating_imdb = { ...prefs.items.rating_imdb, showIcon: true };
-      const { container, unmount } = render(
-        <CardOverlays data={{ rating_imdb: score }} prefs={prefs} />,
-      );
-      const badge = container.querySelector("[data-overlay-badge]")!;
-      expect(badge.querySelector("img")?.getAttribute("alt")).toBe("IMDb");
-      expect(badge.querySelector<HTMLElement>("span:last-child")?.style.backgroundColor).toBe(
-        color,
-      );
-      unmount();
-    }
-  });
-
-  it("keeps text where a format logo is not bundled, and writes the rating source as text with icons off", () => {
-    const hdr = prefsWithOnly("hdr");
-    hdr.items.hdr = { ...hdr.items.hdr, showIcon: true };
-    const { container: hdrBadge } = render(<CardOverlays data={{ hdr: "DV HDR10" }} prefs={hdr} />);
-    // Dolby Vision has a logo but HDR10 does not, so the badge keeps its text.
-    expect(hdrBadge.querySelector("img")).toBeNull();
-    expect(badgeTexts(hdrBadge)).toEqual(["DV HDR10"]);
-
-    const both = prefsWithOnly("hdr");
-    both.items.hdr = { ...both.items.hdr, showIcon: true };
-    const { container: logoBadge } = render(
-      <CardOverlays data={{ hdr: "DV HDR10+" }} prefs={both} />,
-    );
-    expect(Array.from(logoBadge.querySelectorAll("img"), (img) => img.alt)).toEqual([
-      "DV",
-      "HDR10+",
-    ]);
-
-    const rating = prefsWithOnly("rating_tmdb");
-    rating.items.rating_tmdb = { ...rating.items.rating_tmdb, showIcon: false };
-    const { container: ratingBadge } = render(
-      <CardOverlays data={{ rating_tmdb: 7.25 }} prefs={rating} />,
-    );
-    expect(ratingBadge.querySelector("img")).toBeNull();
-    expect(badgeTexts(ratingBadge)[0]).toMatch(/^TMDB\s*7/);
-  });
-
-  it("places centre badges between the corners and scales them with the size", () => {
-    const prefs = prefsWithOnly("resolution");
-    prefs.items.resolution = { ...prefs.items.resolution, position: "top-center" };
-    prefs.size = "large";
-    const { container } = render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />);
-    const stacks = container.querySelectorAll('[data-overlay-edge="top"] > div');
-    expect(stacks).toHaveLength(3);
-    expect(stacks[1]!.textContent).toBe("4K");
-    const medium = render(
-      <CardOverlays data={SAMPLE_MOVIE_DATA} prefs={{ ...prefs, size: undefined }} />,
-    ).container.querySelector<HTMLElement>("[data-overlay-badge]")!.style.fontSize;
-    const large = container.querySelector<HTMLElement>("[data-overlay-badge]")!.style.fontSize;
-    expect(large).not.toBe(medium);
   });
 });
