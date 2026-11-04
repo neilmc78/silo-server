@@ -724,6 +724,9 @@ func newChiRouter(deps Dependencies) chi.Router {
 			signInAttempts = ratelimit.NewMemorySignInLimiter(ratelimit.SignInNamePolicy, ratelimit.SignInSourcePolicy)
 		}
 		authService.SetSignInAttempts(signInAttempts)
+		if deps.SecretCipher != nil {
+			authService.SetSecondFactors(auth.NewSecondFactors(deps.DB, deps.SecretCipher, settingsRepo))
+		}
 		if settingsRepo != nil {
 			invitationService = invitations.NewService(
 				invitations.NewRepository(deps.DB),
@@ -2869,6 +2872,7 @@ func newChiRouter(deps Dependencies) chi.Router {
 		v2deps.Accounts = authHandler
 		v2deps.Devices = authHandler
 		v2deps.Sessions = authHandler
+		v2deps.SecondFactors = authHandler
 		v2deps.PluginLaunch = authHandler
 	}
 	if oauthHandler != nil {
