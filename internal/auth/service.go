@@ -5,11 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/Silo-Server/silo-server/internal/auditmutation"
 	"github.com/Silo-Server/silo-server/internal/auth/passwordhash"
 	"github.com/Silo-Server/silo-server/internal/config"
 	"github.com/Silo-Server/silo-server/internal/models"
@@ -123,6 +126,9 @@ type Service struct {
 	// secondFactors runs the second step of local password sign-in; nil
 	// refuses accounts that have two-step sign-in (SetSecondFactors).
 	secondFactors *SecondFactors
+	// sessionsRevoked runs after a password change signed the account out
+	// of its other sessions; see OnSessionsRevoked.
+	sessionsRevoked func(ctx context.Context, userID int)
 }
 
 // PluginProviderSource supplies the current auth-plugin providers. The
@@ -380,6 +386,13 @@ func (s *Service) SetProviderRecheck(r *ProviderRecheck) {
 // to sign-in, discovery and the OAuth handshake.
 func (s *Service) SetPluginProviderSource(src PluginProviderSource) {
 	s.pluginSource = src
+}
+
+// OnSessionsRevoked registers fn to run after ChangePassword signed the
+// account out of its other sessions, so every replica drops the
+// Jellyfin-compatible sessions it holds in memory.
+func (s *Service) OnSessionsRevoked(fn func(ctx context.Context, userID int)) {
+	s.sessionsRevoked = fn
 }
 
 func (s *Service) pluginProviders() []RegisteredProvider {
@@ -1108,9 +1121,15 @@ func (s *Service) StartImpersonation(ctx context.Context, adminUserID, targetUse
 	if err := s.sessions.createWithQuerier(ctx, tx, session); err != nil {
 		return nil, nil, nil, fmt.Errorf("creating session: %w", err)
 	}
+	audit, err := auditmutation.RecordMutation(ctx, tx, auditmutation.ActionImpersonationStarted, auditmutation.TargetUser,
+		strconv.Itoa(target.ID), http.StatusOK, auditmutation.Created(auditFieldImpersonationSession, sessionID))
+	if err != nil {
+		return nil, nil, nil, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, nil, nil, err
 	}
+	auditmutation.CommitMutation(ctx, audit)
 
 	pair, err := s.generateTokenPair(Claims{
 		UserID:             target.ID,
@@ -1125,20 +1144,27 @@ func (s *Service) StartImpersonation(ctx context.Context, adminUserID, targetUse
 	return pair, admin, target, nil
 }
 
+// auditFieldImpersonationSession names the login session a View as user
+// runs in. A session ID identifies the session; it is not a credential.
+const auditFieldImpersonationSession = "impersonation_session_id"
+
+// auditFieldLoginSession names a login session one revocation ended.
+const auditFieldLoginSession = "login_session_id"
+
 // EndImpersonation revokes an impersonated session without affecting the original admin session.
 func (s *Service) EndImpersonation(ctx context.Context, sessionID string, impersonatorUserID int) error {
-	session, err := s.sessions.GetByID(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-	if session.ImpersonatorUserID == nil {
-		return ErrNotImpersonating
-	}
-	if *session.ImpersonatorUserID != impersonatorUserID {
-		return ErrImpersonationNotAllowed
-	}
-
-	return s.sessions.Revoke(ctx, sessionID)
+	return s.sessions.revokeChecked(ctx, sessionID, func(session *models.AuthSession) error {
+		if session.ImpersonatorUserID == nil {
+			return ErrNotImpersonating
+		}
+		if *session.ImpersonatorUserID != impersonatorUserID {
+			return ErrImpersonationNotAllowed
+		}
+		return nil
+	}, func(tx pgx.Tx, session *models.AuthSession) (*auditmutation.Entry, error) {
+		return auditmutation.RecordMutation(ctx, tx, auditmutation.ActionImpersonationEnded, auditmutation.TargetUser,
+			strconv.Itoa(session.UserID), http.StatusNoContent, auditmutation.Removed(auditFieldImpersonationSession, session.ID))
+	})
 }
 
 // Refresh validates the refresh token, checks that the associated session is
@@ -1366,8 +1392,10 @@ func (s *Service) PasswordChangeAvailable(ctx context.Context, userID int) (bool
 // Profile authorization and impersonation checks belong to the HTTP boundary;
 // this method owns only the account credential transition. sessionID is the
 // login session making the change: when it replaces a temporary password,
-// every other session of the account is revoked.
-func (s *Service) ChangePassword(ctx context.Context, userID int, sessionID, currentPassword, newPassword string) error {
+// every other login session of the account is revoked. signOutOtherSessions
+// also signs the account out everywhere else, as a password reset does,
+// except sessionID.
+func (s *Service) ChangePassword(ctx context.Context, userID int, sessionID, currentPassword, newPassword string, signOutOtherSessions bool) error {
 	user, err := s.users.GetByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("getting user: %w", err)
@@ -1376,14 +1404,21 @@ func (s *Service) ChangePassword(ctx context.Context, userID int, sessionID, cur
 		return err
 	}
 
-	swap := s.users.CompareAndSwapPassword
-	if user.PasswordChangeRequired {
-		swap = func(ctx context.Context, id int, expectedHash, newPassword string) error {
-			return s.users.ReplaceTemporaryPassword(ctx, id, expectedHash, newPassword, sessionID)
-		}
+	switch {
+	case signOutOtherSessions:
+		err = s.users.ReplacePasswordSigningOutOthers(ctx, userID, user.PasswordHash, newPassword, sessionID)
+	case user.PasswordChangeRequired:
+		err = s.users.ReplaceTemporaryPassword(ctx, userID, user.PasswordHash, newPassword, sessionID)
+	default:
+		err = s.users.CompareAndSwapPassword(ctx, userID, user.PasswordHash, newPassword)
 	}
-	if err := swap(ctx, userID, user.PasswordHash, newPassword); err != nil {
+	if err != nil {
 		return fmt.Errorf("updating password: %w", err)
+	}
+	if signOutOtherSessions && s.sessionsRevoked != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
+		s.sessionsRevoked(cleanupCtx, userID)
 	}
 	return nil
 }
@@ -1454,16 +1489,15 @@ func (s *Service) LoginSessionActive(ctx context.Context, sessionID string) (boo
 // RevokeSession revokes a specific session. It verifies the session belongs
 // to the given user before revoking.
 func (s *Service) RevokeSession(ctx context.Context, sessionID string, userID int) error {
-	session, err := s.sessions.GetByID(ctx, sessionID)
-	if err != nil {
-		return err
-	}
-
-	if session.UserID != userID {
-		return ErrSessionNotFound
-	}
-
-	return s.sessions.Revoke(ctx, sessionID)
+	return s.sessions.revokeChecked(ctx, sessionID, func(session *models.AuthSession) error {
+		if session.UserID != userID {
+			return ErrSessionNotFound
+		}
+		return nil
+	}, func(tx pgx.Tx, session *models.AuthSession) (*auditmutation.Entry, error) {
+		return auditmutation.RecordMutation(ctx, tx, auditmutation.ActionLoginSessionRevoked, auditmutation.TargetUser,
+			strconv.Itoa(session.UserID), http.StatusNoContent, auditmutation.Removed(auditFieldLoginSession, session.ID))
+	})
 }
 
 // generateTokenPair creates a new access/refresh token pair for the given

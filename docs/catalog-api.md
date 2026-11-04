@@ -37,8 +37,17 @@ in the row and open the full list here. To download only the cards a row shows,
 `listHomeSections` and `listLibrarySections` accept `item_limit` (1 to 100),
 which caps every row's item limit for that request. Send it only when
 `getHomeCapabilities` reports `section_item_limit_max`; an older server rejects
-the parameter. See the home section of
-[the native API contract](architecture/api-contract.md) for the details.
+the parameter. `getHomeSectionItems` and `getHomeLayout` (for the rows it
+includes) accept the same `item_limit`; send it only when `getHomeCapabilities`
+reports `row_item_limit_max`. A row they answer with `item_limit` carries
+`has_more: true` when it holds more cards than it answered. See the home section
+of [the native API contract](architecture/api-contract.md) for the details.
+
+This listing is not a continuation of a capped row. Query-backed rows page their
+source here, so a Home row that hides watched items lists them here, and a random
+row is drawn again. A client that shows a capped row reporting `has_more` and
+wants the rest of it in place reads the row again at its own limit
+(`getHomeSectionItems` without `item_limit`) and keeps the cards it already shows.
 
 ## People search
 
@@ -510,6 +519,20 @@ and the watchlist alone. A change publishes `user_state.changed` with
 clients can update. The frozen v1 surface has no mark and does not show it. See
 [recommendations.md](architecture/recommendations.md#rows).
 
+## Episodes left on a series card
+
+On a series or season card the profile has not finished, v2 `user_state` adds
+`watched_count` (episodes the profile watched) and `unplayed_count` (available
+episodes it has not). Both are absent on a finished series or season, on movies
+and episodes, and when the user store has no episode rollup; the frozen v1 card
+never carries them. "Available" and "watched" follow `played`: an episode counts
+while it belongs to a library, and is watched when its visible progress or a
+visible completed history row says so. Clients draw the episodes-left mark in a
+card's top-right status corner from the pair (see
+[card-overlays.md](architecture/card-overlays.md)). `played` still comes from the
+completion query; the counts come from one batched rollup per kind for just the
+unfinished series and seasons on the page.
+
 ## Watchlist titles outside the library
 
 The watchlist can also hold movies and series the library doesn't have, keyed by
@@ -626,7 +649,16 @@ rule editors and only while that flag is true. `/api/v1` refuses `show_title`.
 
 `not_in_last` keeps titles whose date falls before the span; a title without the
 date matches neither `in_last` nor `not_in_last`, and a title with no runtime
-matches no `runtime` bound. `latest_episode_added` and `last_air_date` describe a
+matches no `runtime` bound. An audiobook's `runtime` uses its longest active
+recording copy across libraries: file durations are summed per library and
+canonical recording root, then rounded to the nearest minute (at least one).
+File changes and removals maintain this value; metadata enrichment and refresh
+preserve it. An admin runtime lock preserves the edited value instead; removing
+the lock restores the file-derived value immediately. Books
+without positive file durations retain their stored runtime. The `runtime` rule,
+sort and item field therefore use the same value. Audiobook group totals and
+Audiobookshelf responses retain their library-scoped duration calculations.
+`latest_episode_added` and `last_air_date` describe a
 show's newest episode with a file in a library, so movies never match them. An
 episode the metadata provider lists but no library has a file for does not count,
 even after its air date. The `last_air_date` sort follows the same rule. A show's
@@ -680,11 +712,20 @@ servers ignore an unrecognized `type`, which searches every media type, and
 reject it as a people `media_scope`. A client that hides books must check the
 flag and send `video` when it is absent.
 
-`GET /api/v2/catalog/search/capabilities` reports the selected provider and, for
+`GET /api/v2/catalog/search/capabilities` reports the provider selected by the
+responding server's current ranking-availability checks and, for
 Meilisearch, `result_window_limit`, `session_ttl_seconds`, and
-`max_sessions_per_account`. Catalog query bodies default to 50 results per page. Search
-responses also expose the applicable window limit and fixed session expiry in
-`search_diagnostics`.
+`max_sessions_per_account`. While Meilisearch is configured but its index is
+unbuilt, unreachable, or on an incompatible schema, searches fall back to
+PostgreSQL and the read reports `provider: postgres` without the Meilisearch
+limits. These provider and limit fields are an explicit exception to the usual
+configuration-only capability contract: changes in availability affect the
+document's `revision` and `ETag`, and replicas can return different answers.
+This is a snapshot, not a dependency-health guarantee; a failed PostgreSQL
+index-state read can also select fallback even though searches cannot succeed.
+Clients use each search response's `search_diagnostics` for its actual provider,
+applicable window limit, and fixed session expiry. A later search can choose a
+different provider. Catalog query bodies default to 50 results per page.
 
 PostgreSQL search retains the complete relevance tuple or requested SQL sort
 rather than a numeric page. It selects the FTS or bounded fuzzy retrieval family
@@ -770,6 +811,53 @@ the result like an exact count; it has the same 10-second deadline as a window
 seek. It covers the query source only and takes no search text or
 `name_prefix`. `getCatalogSearchCapabilities` reports `letter_index: true` when
 the operation is available.
+
+## Movie box sets
+
+A movie or mixed library can gather the movies TMDB lists in one collection (a
+franchise such as Harry Potter) into one box set. An administrator turns it on
+with the library's `box_sets_enabled`; `box_set_min_movies` (2 to 10, default
+2) is the fewest of a collection's movies the library must hold, and
+`box_sets_in_search` (default true) lists the library's box sets in search.
+`getCatalogSearchCapabilities` reports `box_sets: true` to viewers when the
+server supports them (`getLibraryCapabilities` reports the same to
+administrators), and `listUserLibraries` reports each viewer library's
+`box_sets_enabled`.
+
+Box sets appear in search, on their own page, and as a row on a movie's page.
+Library browse never groups them: `listCatalogItems`, `queryCatalogItems`, and
+`queryCatalogLetters` list each movie on its own. A collection's artwork is
+cached like item artwork when the server caches metadata images; until then
+its URLs point at TMDB.
+
+`GET /api/v2/catalog/box-sets/{id}?library_id=` (`getCatalogBoxSet`) answers a
+box set with its movies in that library that the viewer can see, in collection
+(release) order; it is `404` when the library has box sets off or the viewer
+can see too few of its movies. `GET /api/v2/catalog/box-sets?q=`
+(`searchCatalogBoxSets`) answers the box sets of libraries with
+`box_sets_in_search` whose name contains every word of `q`, or that have two
+or more movies in those libraries the viewer can see whose titles do, best
+match first. Movies the viewer cannot see never count toward a title match.
+`library_id` limits the search to one library. Search results keep listing the
+movies themselves; clients show matching box sets ahead of them.
+
+`GET /api/v2/catalog/items/{id}/box-set?library_id=` (`getCatalogItemBoxSet`)
+answers the box set a movie's page shows, as `getCatalogBoxSet` would answer
+it: from `library_id`, or else the first of the movie's libraries with box sets
+on, when the viewer can see the movie and at least `box_set_min_movies` of the
+collection's movies there. `box_set` is absent when there is none, including
+for a title that is not a movie (a series or an audiobook); like the
+membership reads (see personal-lists in the API contract), that ordinary
+answer is a `200`. `404` is kept for an ID that is missing, hidden from the
+viewer, or not a catalog title (an episode or season ID). Clients show it as a
+row of the box set's movies on the movie page, marking the movie being viewed.
+
+A box set's `title` is its TMDB collection name with a trailing "Collection"
+shown as "Box Set" ("Harry Potter Collection" is "Harry Potter Box Set"), so it
+does not read as one of Silo's own collections; other names are unchanged.
+Search finds it by either form ("harry potter box set" or "harry potter
+collection"), but "box", "set" or "collection" alone matches only names that
+contain the word themselves.
 
 ## History ordering
 
@@ -901,6 +989,36 @@ used cannot be deleted (`409`) until those rows stop showing it.
 
 Both routes require acting administrator access. The frozen `/api/v1/admin/collections` list is
 unchanged and carries no counts.
+
+## Calendar movie dates
+
+`GET /api/v2/calendar` lists each movie once, on its first home release: the
+earlier of its digital (streaming or purchase) and physical (disc) release
+dates, each the earliest in any country. A theatrical release never reaches a
+media server, so the calendar does not use `release_date` for movies, and a
+movie with no home release date yet is not listed. The event carries a
+`digital` or `physical` badge naming the release it is listed on; when both
+fall on the same day, it is `digital`. The frozen `/api/v1/calendar` lists
+movies on the same dates, because both read the same events, but never sends
+these two badges.
+
+The home release dates pick only the calendar day. The upcoming titles in the
+For You discover row follow the same day, and their `upcoming_event.badges`
+carry the same `digital` or `physical` badge on `/api/v2` (never on
+`/api/v1/recommendations/discover`). Item detail, sorting, filters and the year
+still use `release_date`, and no item response carries the home release dates.
+
+Metadata providers supply them as `digital_release_date` and
+`physical_release_date` (`YYYY-MM-DD`) in the `metadata` Struct of a movie's
+`GetMetadata` response. The host ignores the keys on other item types and drops
+a value that is not a calendar date. The TMDB plugin derives them from TMDB's
+type 4 (digital) and type 5 (physical) release dates. Every refresh, scheduled
+ones included, replaces a stored date with the one the provider sends now,
+because providers revise them. A date the provider stops sending is kept,
+except when Identify, or an NFO on a manual refresh, corrects the item's match:
+the new movie's dates replace the stored ones even when it has none. A bulk
+enrichment pass is not a refresh and only fills dates that are empty.
+Locking release dates on an item also locks them.
 
 ## Advisory age
 
