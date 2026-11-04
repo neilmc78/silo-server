@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAccountPasswordCapability, useChangeAccountPassword } from "@/hooks/queries/account";
 import { useT } from "@/i18n";
 import { AccountSignInSection } from "./AccountSignInSection";
+import { AccountTwoStepSection } from "./AccountTwoStepSection";
 
 function passwordByteLength(value: string) {
   return new TextEncoder().encode(value).length;
@@ -200,6 +201,8 @@ export default function AccountSettings() {
           </form>
         )}
       </SettingsGroup>
+
+      <AccountTwoStepSection />
 
       <AccountSignInSection />
     </div>
