@@ -21,6 +21,7 @@ import {
   passwordErrorMessage,
 } from "@/lib/newPassword";
 import { AccountSignInSection } from "./AccountSignInSection";
+import { AccountTwoStepSection } from "./AccountTwoStepSection";
 
 export default function AccountSettings() {
   const t = useT();
@@ -202,6 +203,8 @@ export default function AccountSettings() {
           </form>
         )}
       </SettingsGroup>
+
+      <AccountTwoStepSection />
 
       <AccountSignInSection />
     </div>
