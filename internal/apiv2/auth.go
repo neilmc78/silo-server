@@ -90,7 +90,10 @@ func registerAuth(reg *Registry) {
 	// the account's person (not_permitted) is 403, and so is a directory sign-in
 	// with no account while account creation is off (account_required); an
 	// account a directory sign-in cannot create or link is 409 (email_in_use,
-	// identity_linked_elsewhere). A name that has used its sign-in attempt
+	// identity_linked_elsewhere). A correct password for an account with
+	// two-step sign-in is 401 second_factor_required, whose
+	// Silo-Second-Factor-Challenge and Silo-Second-Factor-Methods headers
+	// start completeSecondFactorLogin. A name that has used its sign-in attempt
 	// budget, or a client over the login rate limit, is 429 rate_limited.
 	login.Errors = []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusConflict, http.StatusTooManyRequests}
 	Register(reg, Operation{
@@ -238,6 +241,9 @@ func (reg *Registry) completeOAuthLogin(ctx context.Context, in *CompleteOAuthLo
 // invalid_token type (the status default is authentication_required, which
 // would tell the client to present a credential it just presented).
 func loginProblem(err error) *Problem {
+	if stepUp, ok := errors.AsType[*auth.SecondFactorRequiredError](err); ok {
+		return secondFactorRequiredProblem(stepUp)
+	}
 	apiErr, ok := err.(*handlers.APIError) //nolint:errorlint // Login returns the value directly
 	if ok && apiErr.Status == http.StatusUnauthorized {
 		return NewProblem(TypeInvalidToken, apiErr.Message+".")

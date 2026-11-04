@@ -437,7 +437,7 @@ func mapLoginError(err error) (int, string, string) {
 		}
 		return http.StatusBadGateway, "UpstreamError", httpErr.Error()
 	}
-	if errors.Is(err, ErrProfileRequired) || errors.Is(err, ErrProfileNotFound) || errors.Is(err, ErrProfileAmbiguous) || errors.Is(err, ErrProfileHasPIN) || errors.Is(err, ErrInvalidPIN) || errors.Is(err, auth.ErrPasswordChangeRequired) {
+	if errors.Is(err, ErrProfileRequired) || errors.Is(err, ErrProfileNotFound) || errors.Is(err, ErrProfileAmbiguous) || errors.Is(err, ErrProfileHasPIN) || errors.Is(err, ErrInvalidPIN) || errors.Is(err, auth.ErrPasswordChangeRequired) || errors.Is(err, auth.ErrSecondFactorUnsupported) {
 		return http.StatusUnauthorized, loginErrorCode, err.Error()
 	}
 	if errors.Is(err, passwordhash.ErrBusy) {
@@ -454,6 +454,11 @@ func mapAuthError(err error) error {
 	if errors.Is(err, auth.ErrPasswordChangeRequired) {
 		// Kept as the sentinel, like the PIN errors, so the client sees why.
 		return fmt.Errorf("%w: sign in to Silo to replace your temporary password", err)
+	}
+	if errors.Is(err, auth.ErrSecondFactorUnsupported) {
+		// Jellyfin clients cannot ask for a second step; Quick Connect,
+		// approved from a signed-in Silo session, still works.
+		return fmt.Errorf("%w: use Quick Connect from a signed-in Silo session", err)
 	}
 	if _, ok := errors.AsType[*auth.SignInThrottledError](err); ok {
 		// Kept as is: the handler answers 429 with its Retry-After.

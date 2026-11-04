@@ -16,6 +16,7 @@ vi.mock("@/hooks/queries/account", () => ({
 
 // The Sign-in section has its own tests (AccountSignInSection.test.tsx).
 vi.mock("./AccountSignInSection", () => ({ AccountSignInSection: () => null }));
+vi.mock("./AccountTwoStepSection", () => ({ AccountTwoStepSection: () => null }));
 
 vi.mock("sonner", () => ({
   toast: { success: (...args: unknown[]) => mocks.toastSuccess(...args) },

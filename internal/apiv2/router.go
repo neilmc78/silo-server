@@ -256,6 +256,8 @@ type Dependencies struct {
 	AdminTaskHistory              AdminTaskHistoryService
 	Devices                       DeviceLoginService
 	Sessions                      SessionService
+	// SecondFactors runs two-step sign-in for local password accounts.
+	SecondFactors SecondFactorService
 	// PluginLaunch mints the plugin access cookie token (*handlers.AuthHandler).
 	PluginLaunch          PluginLaunchService
 	OAuth                 OAuthService
