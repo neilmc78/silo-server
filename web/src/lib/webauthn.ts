@@ -77,8 +77,9 @@ function requestOptions(options: JsonObject): PublicKeyCredentialRequestOptions 
 }
 
 function credentialJSON(credential: PublicKeyCredential): JsonObject {
-  const withJSON = credential as PublicKeyCredential & { toJSON?: () => JsonObject };
-  if (typeof withJSON.toJSON === "function") return withJSON.toJSON();
+  // Older DOM typings lack toJSON; browsers without it get the fallback below.
+  const withJSON = credential as unknown as { toJSON?: () => unknown };
+  if (typeof withJSON.toJSON === "function") return withJSON.toJSON() as JsonObject;
   const response = credential.response as AuthenticatorResponse & {
     attestationObject?: ArrayBuffer;
     authenticatorData?: ArrayBuffer;
