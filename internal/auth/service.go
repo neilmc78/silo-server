@@ -127,6 +127,9 @@ type Service struct {
 	// of its other sessions; see OnSessionsRevoked.
 	sessionsRevoked      func(ctx context.Context, userID int)
 	authProvidersChanged func(context.Context)
+	// secondFactors runs the second step of local password sign-in; nil
+	// refuses accounts that have two-step sign-in (SetSecondFactors).
+	secondFactors *SecondFactors
 }
 
 // PluginProviderSource supplies the current auth-plugin providers. The
@@ -901,32 +904,31 @@ func (s *Service) loginWithProvider(
 		// Linking and account changes hold this row lock while retiring local
 		// credentials. Recheck the authenticated snapshot before inserting a
 		// session so an in-flight login cannot outlive their revocation.
+		var stepUp *SecondFactorRequiredError
 		err = pgx.BeginFunc(ctx, s.users.pool, func(tx pgx.Tx) error {
-			current, err := lockUser(ctx, tx, user.ID)
-			if IsNotFound(err) {
-				return ErrInvalidCredentials
-			}
+			current, err := lockLocalSignIn(ctx, tx, user.ID, refusePasswordChange, func(current *models.User) bool {
+				return current.PasswordHash == user.PasswordHash
+			})
 			if err != nil {
 				return err
 			}
-			if !current.LocalPasswordLoginEnabled || current.PasswordHash != user.PasswordHash {
-				return ErrInvalidCredentials
+			methods, err := secondFactorMethods(ctx, tx, current.ID)
+			if err != nil {
+				return err
 			}
-			if !current.Enabled {
-				return ErrUserDisabled
-			}
-			if refusePasswordChange && current.PasswordChangeRequired {
-				return ErrPasswordChangeRequired
-			}
-			if !current.BreakGlass {
-				if err := lockServerSettings(ctx, tx); err != nil {
+			// Break-glass accounts are the way back in when everything else
+			// fails, so they never wait on a second step.
+			if len(methods) > 0 && !current.BreakGlass {
+				// Compatibility surfaces cannot ask for a second step.
+				if refusePasswordChange || s.secondFactors == nil {
+					return ErrSecondFactorUnsupported
+				}
+				id, err := s.secondFactors.openChallenge(ctx, tx, current.ID, challengeSignIn, passwordMark(current.PasswordHash), nil)
+				if err != nil {
 					return err
 				}
-			}
-			// A re-check refusing the person holds the account row lock too,
-			// so a refusal cannot land between this check and the session.
-			if err := localPasswordPolicy(ctx, tx, current); err != nil {
-				return err
+				stepUp = &SecondFactorRequiredError{ChallengeID: id, Methods: methods}
+				return nil
 			}
 			if err := s.sessions.createWithQuerier(ctx, tx, session); err != nil {
 				return err
@@ -934,6 +936,9 @@ func (s *Service) loginWithProvider(
 			user = current
 			return nil
 		})
+		if err == nil && stepUp != nil {
+			return nil, nil, stepUp
+		}
 	} else {
 		// Account resolution committed in its own transaction. Open the
 		// session as an OAuth sign-in does, under the account lock, so a
