@@ -349,6 +349,7 @@
 ./internal/api/handlers TestPluginDisableAndUninstallRefusedBeforeStopDB
 ./internal/auth TestLoginSessionActivityAndAdminRevocationDB
 ./internal/auth TestChangePasswordSignOutOtherSessionsDB
+./internal/auth TestSecondFactorSignInDB
 ./internal/auth TestSignupPolicySerializationDB
 ./internal/apiv2 TestSignupCommitPolicyErrorsDB
 ./internal/auth TestJellyfinSessionDeleteFailureRollsBackRevocationPostgres
