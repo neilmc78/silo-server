@@ -560,6 +560,7 @@ func registerAll(reg *Registry) {
 	registerAutoscanDelivery(reg)
 	registerScanControls(reg)
 	registerAccount(reg)
+	registerSecondFactor(reg)
 	registerAuth(reg)
 	registerOAuthHandshakes(reg)
 	registerAuthSessions(reg)

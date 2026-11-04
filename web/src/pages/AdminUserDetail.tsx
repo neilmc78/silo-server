@@ -8,7 +8,8 @@ import {
   getAdminUser,
   type AdminUserEditor,
 } from "@/api/v2/adminUsers";
-import { isNotFoundProblem, V2ProblemError } from "@/api/v2/request";
+import { useMutation } from "@tanstack/react-query";
+import { isNotFoundProblem, v2, V2ProblemError } from "@/api/v2/request";
 import { AdminUserDeleteDialog } from "@/components/AdminUserDeleteDialog";
 import { AdminUserImpersonationDialog } from "@/components/AdminUserImpersonationDialog";
 import { AdminUserPasswordResetDialog } from "@/components/AdminUserPasswordResetDialog";
@@ -82,6 +83,22 @@ function AdminUserDetailPage() {
   const [transferOpen, setTransferOpen] = useState(false);
   const [disableOpen, setDisableOpen] = useState(false);
   const [deleteEditor, setDeleteEditor] = useState<AdminUserEditor | null>(null);
+  const [resetTwoStepOpen, setResetTwoStepOpen] = useState(false);
+  const resetTwoStep = useMutation({
+    mutationFn: () =>
+      v2("DELETE /api/v2/admin/users/{id}/second-factors", {
+        path: { id: String(userId) },
+        profileContext: authority,
+      }),
+    onSuccess: () => {
+      setResetTwoStepOpen(false);
+      toast.success("Two-step sign-in reset");
+    },
+    onError: (err) => {
+      setResetTwoStepOpen(false);
+      setActionError(err instanceof Error ? err.message : "Could not reset two-step sign-in.");
+    },
+  });
 
   if (isLoading) return <div className="pb-8">Loading user...</div>;
   if (!user) {
@@ -247,6 +264,19 @@ function AdminUserDetailPage() {
               passwordOpen={passwordOpen}
               onPasswordOpenChange={setPasswordOpen}
             />
+            {manageable && available && (
+              <section className="space-y-2">
+                <h2 className="text-base font-semibold">Two-step sign-in</h2>
+                <p className="text-muted-foreground max-w-2xl text-sm">
+                  If {account.username} lost the phone or passkey they use to finish signing in with
+                  their password, remove their two-step sign-in. They can set it up again from their
+                  account settings.
+                </p>
+                <Button type="button" variant="outline" onClick={() => setResetTwoStepOpen(true)}>
+                  Reset two-step sign-in
+                </Button>
+              </section>
+            )}
             {capabilities.data?.login_sessions && (
               <LoginSessionsPanel adminUser={account} manageable={manageable} />
             )}
@@ -271,6 +301,16 @@ function AdminUserDetailPage() {
           confirmLabel="Make owner"
           onConfirm={handleTransfer}
           isPending={transferOwnership.isPending}
+        />
+        <ConfirmDialog
+          open={resetTwoStepOpen}
+          onOpenChange={setResetTwoStepOpen}
+          title={`Reset two-step sign-in for ${account.username}?`}
+          description="Their authenticator app, passkeys and recovery codes are removed. Until they set it up again, their password alone signs them in."
+          confirmLabel="Reset"
+          variant="destructive"
+          isPending={resetTwoStep.isPending}
+          onConfirm={() => resetTwoStep.mutate()}
         />
         <ConfirmDialog
           open={disableOpen}
