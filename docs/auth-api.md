@@ -254,6 +254,53 @@ hour. An account gets at most one requested link every five minutes. A requested
 link replaces the account's earlier requested link, but never a live link an
 administrator issued; while one exists, requests send nothing.
 
+## Two-step sign-in
+
+An account that signs in with a local password can add a second step: an
+authenticator app (TOTP, RFC 6238, six digits, 30-second steps, SHA-1), one or
+more passkeys (WebAuthn), and ten one-time recovery codes that come with the
+first factor. The account has two-step sign-in while it holds a confirmed
+authenticator or at least one passkey. Only local password sign-in asks for
+it; OIDC, OAuth plugin, LDAP directory and network sign-in, device-code
+approval and token refresh do not.
+
+A correct password for such an account opens no session. v2 `login` answers
+`401 second_factor_required` with two headers:
+
+- `Silo-Second-Factor-Challenge`: the waiting sign-in.
+- `Silo-Second-Factor-Methods`: what the account can use, comma-separated
+  (`totp`, `passkey`, `recovery`).
+
+`POST /api/v2/auth/login/second-factor` (`completeSecondFactorLogin`) takes the
+challenge and exactly one of `code`, `recovery_code` or `passkey`, and returns
+the same token pair as `login`. A challenge lasts five minutes, opens one
+session, is spent by five wrong answers, and stops working if the password
+changes between the steps. Each attempt spends the account's sign-in budget
+(see "Sign-in attempts per name"). A wrong answer is `401
+second_factor_invalid`; an unknown, used or expired challenge is `401
+invalid_token`. An authenticator code is accepted one step either side of now,
+and never for a step at or before the last one accepted.
+
+For a passkey, `POST /api/v2/auth/login/second-factor/passkey-options` returns
+the WebAuthn request options for the challenge. Passkeys are bound to the host
+of `server.public_url`, which must be `https`; otherwise the passkey operations
+answer `409 capability_not_configured` and the account uses its other methods.
+
+Surfaces that cannot ask for a second step refuse such an account: v1 `POST
+/auth/login` answers `401 second_factor_required`, and the Jellyfin and
+Audiobookshelf compatibility logins refuse it like a temporary password.
+Jellyfin clients can use Quick Connect, and Silo apps device-code sign-in,
+approved from a session that already passed the second step. A password reset
+link on such an account resets the password and answers `sign_in_required`.
+
+The account manages its methods under `/api/v2/account/second-factors` with
+the rules of `changePassword` (the primary profile on a plain login session).
+Removing a method or replacing the recovery codes needs `current_password`.
+An administrator can remove all of an account's methods with `DELETE
+/api/v2/admin/users/{id}/second-factors`; the Owner rules apply. The
+authenticator secret is stored encrypted with the data cipher, bound to its
+row; recovery codes are stored as SHA-256 hashes.
+
 ## Email addresses
 
 Every v2 write that stores an account address (`setupServer`, `signup`,

@@ -960,6 +960,16 @@ func TestRetrySafetyMismatchesFire(t *testing.T) {
 // mutation that is not listed here, the same rule guardedWithoutLegacyRow
 // applies to concurrency.
 var mutationWithoutLegacyRow = map[string]string{
+	"completeSecondFactorLogin":      "V2-only second step of password sign-in (v1 is frozen). The challenge is single-use: a replay after success answers invalid_token and opens no second session.",
+	"getSecondFactorPasskeyOptions":  "V2-only WebAuthn options for a waiting sign-in. It replaces the challenge's ceremony, so a replay issues fresh options and invalidates the earlier ones.",
+	"beginAccountTOTP":               "V2-only authenticator setup. A replay replaces the pending secret; a confirmed one is refused.",
+	"confirmAccountTOTP":             "V2-only authenticator confirmation. A replay after success is refused as already enabled.",
+	"removeAccountTOTP":              "V2-only authenticator removal. A replay finds nothing to remove and answers not_found.",
+	"createAccountPasskeyOptions":    "V2-only passkey registration options. Each call opens a new single-use ceremony.",
+	"createAccountPasskey":           "V2-only passkey registration. The ceremony is single-use and credential IDs are unique, so a replay stores nothing.",
+	"removeAccountPasskey":           "V2-only passkey removal. A replay finds nothing to remove and answers not_found.",
+	"regenerateAccountRecoveryCodes": "V2-only recovery code replacement. A replay issues another fresh set; only the latest set is valid.",
+	"resetAdminUserSecondFactors":    "V2-only administrator reset of two-step sign-in. Removing absent factors deletes nothing, so a replay converges.",
 	"reportPlaybackBandwidthProbe":             "V2-only connection speed observation; no v1 equivalent.",
 	"resetAdminDeviceLearnedLimit":             "V2-only device connection limit reset; no v1 equivalent.",
 	"resetPlaybackLearnedLimit":                "V2-only buffering-quality connection observation reset; no v1 equivalent.",
