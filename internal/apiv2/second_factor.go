@@ -74,7 +74,7 @@ type SecondFactorPasskey struct {
 
 // SecondFactorStatusBody is what the account has set up.
 type SecondFactorStatusBody struct {
-	Available         bool                  `json:"available" doc:"Whether the account signs in with a local password, so two-step sign-in applies" example:"true"`
+	Available         bool                  `json:"available" doc:"Whether the account can use two-step sign-in: it signs in with a local password and is not a break-glass account" example:"true"`
 	Enabled           bool                  `json:"enabled" doc:"Whether password sign-in asks for a second step" example:"true"`
 	TOTPEnabled       bool                  `json:"totp_enabled" doc:"Whether an authenticator app is set up" example:"true"`
 	Passkeys          []SecondFactorPasskey `json:"passkeys" doc:"Registered passkeys; empty, never null"`
@@ -202,7 +202,8 @@ func secondFactorProblem(err error) *Problem {
 	case errors.Is(err, auth.ErrSecondFactorsUnavailable):
 		return unavailable("two-step sign-in")
 	case errors.Is(err, auth.ErrTOTPAlreadyEnabled), errors.Is(err, auth.ErrTOTPNotPending),
-		errors.Is(err, auth.ErrConflictPasskey), errors.Is(err, auth.ErrPasswordLoginDisabled):
+		errors.Is(err, auth.ErrConflictPasskey), errors.Is(err, auth.ErrPasswordLoginDisabled),
+		errors.Is(err, auth.ErrBreakGlassNoSecondFactor):
 		return NewProblem(TypeConflict, capitalize(err.Error())+".")
 	case errors.Is(err, auth.ErrSecondFactorNotFound), auth.IsNotFound(err):
 		return NewProblem(TypeNotFound, "Not found.")

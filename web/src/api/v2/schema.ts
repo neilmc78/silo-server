@@ -31521,7 +31521,7 @@ export interface components {
     };
     SecondFactorStatusBody: {
       /**
-       * @description Whether the account signs in with a local password, so two-step sign-in applies
+       * @description Whether the account can use two-step sign-in: it signs in with a local password and is not a break-glass account
        * @example true
        */
       available: boolean;

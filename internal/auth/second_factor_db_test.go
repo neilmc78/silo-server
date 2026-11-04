@@ -164,6 +164,25 @@ func TestSecondFactorSignInDB(t *testing.T) {
 	}
 	svc.SetSecondFactors(factors)
 
+	// A break-glass account signs in with its password alone, even holding
+	// methods, and cannot set new ones up.
+	if _, err := pool.Exec(ctx, `UPDATE users SET role='admin', break_glass=true WHERE id=$1`, userID); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.Login(ctx, name, "password", "test", "127.0.0.1"); err != nil {
+		t.Fatalf("break-glass login: %v", err)
+	}
+	breakGlass, err := users.GetByID(ctx, userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := factors.BeginTOTP(ctx, breakGlass); !errors.Is(err, ErrBreakGlassNoSecondFactor) {
+		t.Fatalf("break-glass setup = %v, want ErrBreakGlassNoSecondFactor", err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE users SET role='user', break_glass=false WHERE id=$1`, userID); err != nil {
+		t.Fatal(err)
+	}
+
 	// An administrator reset turns two-step sign-in off.
 	if err := factors.ResetAll(ctx, userID); err != nil {
 		t.Fatal(err)

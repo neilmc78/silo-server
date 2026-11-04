@@ -791,7 +791,9 @@ func (s *Service) loginWithProvider(
 			if err != nil {
 				return err
 			}
-			if len(methods) > 0 {
+			// Break-glass accounts are the way back in when everything else
+			// fails, so they never wait on a second step.
+			if len(methods) > 0 && !current.BreakGlass {
 				// Compatibility surfaces cannot ask for a second step.
 				if refusePasswordChange || s.secondFactors == nil {
 					return ErrSecondFactorUnsupported

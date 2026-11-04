@@ -262,7 +262,9 @@ more passkeys (WebAuthn), and ten one-time recovery codes that come with the
 first factor. The account has two-step sign-in while it holds a confirmed
 authenticator or at least one passkey. Only local password sign-in asks for
 it; OIDC, OAuth plugin, LDAP directory and network sign-in, device-code
-approval and token refresh do not.
+approval and token refresh do not. It is optional per account. Break-glass accounts
+cannot set it up and never get the second step, even if they held methods
+before they became break-glass, so they stay a password-only way back in.
 
 A correct password for such an account opens no session. v2 `login` answers
 `401 second_factor_required` with two headers:

@@ -48,6 +48,9 @@ var (
 	ErrTOTPNotPending = errors.New("start authenticator setup first")
 	// ErrTOTPAlreadyEnabled refuses a second authenticator setup.
 	ErrTOTPAlreadyEnabled = errors.New("an authenticator app is already set up; turn it off first")
+	// ErrBreakGlassNoSecondFactor refuses setting up a second step on a
+	// break-glass account, which always signs in with its password alone.
+	ErrBreakGlassNoSecondFactor = errors.New("break-glass accounts sign in with their password alone and cannot use two-step sign-in")
 	// ErrSecondFactorNotFound refuses removing a factor the account lacks.
 	ErrSecondFactorNotFound = errors.New("that sign-in method is not set up")
 	// ErrSecondFactorsUnavailable means the server was started without the
@@ -215,8 +218,8 @@ func (f *SecondFactors) BeginTOTP(ctx context.Context, user *models.User) (*TOTP
 	if f == nil || f.cipher == nil {
 		return nil, ErrSecondFactorsUnavailable
 	}
-	if !user.LocalPasswordLoginEnabled || user.PasswordHash == "" {
-		return nil, ErrPasswordLoginDisabled
+	if err := secondFactorEligible(user); err != nil {
+		return nil, err
 	}
 	key, err := totp.Generate(totp.GenerateOpts{Issuer: totpIssuer, AccountName: user.Username})
 	if err != nil {
@@ -398,7 +401,7 @@ type SecondFactorStatus struct {
 
 // Status reports the account's second factors.
 func (f *SecondFactors) Status(ctx context.Context, user *models.User) (*SecondFactorStatus, error) {
-	st := &SecondFactorStatus{PasswordLoginAccount: user.LocalPasswordLoginEnabled && user.PasswordHash != ""}
+	st := &SecondFactorStatus{PasswordLoginAccount: secondFactorEligible(user) == nil}
 	if err := f.pool.QueryRow(ctx, `
 		SELECT EXISTS (SELECT 1 FROM user_totp WHERE user_id = $1 AND confirmed_at IS NOT NULL),
 		       (SELECT COUNT(*) FROM user_recovery_codes WHERE user_id = $1 AND used_at IS NULL)`, user.ID).
@@ -536,8 +539,8 @@ type rowsQuerier interface {
 // BeginPasskeyRegistration starts adding a passkey and returns the challenge
 // ID and the options for navigator.credentials.create.
 func (f *SecondFactors) BeginPasskeyRegistration(ctx context.Context, user *models.User) (string, []byte, error) {
-	if !user.LocalPasswordLoginEnabled || user.PasswordHash == "" {
-		return "", nil, ErrPasswordLoginDisabled
+	if err := secondFactorEligible(user); err != nil {
+		return "", nil, err
 	}
 	rp, err := f.relyingParty(ctx)
 	if err != nil {
@@ -734,4 +737,17 @@ func (f *SecondFactors) check(ctx context.Context, tx pgx.Tx, ch *challengeRow, 
 		return err == nil, err
 	}
 	return false, nil
+}
+
+// secondFactorEligible reports whether the account may set up two-step
+// sign-in: it signs in with a local password and is not a break-glass
+// account.
+func secondFactorEligible(user *models.User) error {
+	if !user.LocalPasswordLoginEnabled || user.PasswordHash == "" {
+		return ErrPasswordLoginDisabled
+	}
+	if user.BreakGlass {
+		return ErrBreakGlassNoSecondFactor
+	}
+	return nil
 }
