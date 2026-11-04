@@ -46,6 +46,9 @@ import {
   ReadOnlyCollectionCallout,
 } from "@/components/collections/CollectionPageActions";
 import { useCollectionPageAccess } from "@/hooks/useCollectionPageAccess";
+import { useCollectionPageHeader } from "@/hooks/queries/collectionPageHeader";
+import { HeroBackdropArtwork } from "@/components/HeroBackdropArtwork";
+import { CollectionDescription } from "@/components/collections/CollectionDescription";
 import {
   buildHistoryRemovalTarget,
   historyRemovalDialogDescription,
@@ -371,6 +374,16 @@ function CatalogResults({
         }
       : null,
   );
+  const collectionHeader = useCollectionPageHeader(
+    isCollectionSource && state.collection_id && !collectionUnavailable
+      ? {
+          scope: state.source === "library_collection" ? "server" : "personal",
+          id: state.collection_id,
+          libraryId: state.library_id,
+        }
+      : null,
+  );
+  const hasBackdrop = Boolean(collectionHeader.backdropUrl || collectionHeader.backdropThumbhash);
   const title = collectionUnavailable
     ? "Not found"
     : (catalogQuery.data?.title ?? state.title ?? defaultCatalogTitle(state.source, state.q));
@@ -425,15 +438,50 @@ function CatalogResults({
       {searchParams.get("notice") === "read-only" ? (
         <ReadOnlyCollectionCallout access={collectionAccess} collectionName={title} />
       ) : null}
-      <header className="page-header">
-        <div className="space-y-3">
+      <header
+        className={cn(
+          "page-header",
+          hasBackdrop &&
+            "relative isolate min-h-[clamp(16rem,42vh,26rem)] content-end overflow-hidden rounded-2xl px-4 pt-24 pb-5 sm:px-6 sm:pb-6",
+        )}
+      >
+        {hasBackdrop ? (
+          <>
+            <HeroBackdropArtwork
+              backdropUrl={collectionHeader.backdropUrl}
+              backdropThumbhash={collectionHeader.backdropThumbhash}
+              className="absolute inset-0"
+            />
+            {/* Fade the artwork into the page below and behind the text. */}
+            <div
+              aria-hidden="true"
+              className="from-background via-background/70 absolute inset-0 bg-gradient-to-t to-transparent"
+            />
+            <div
+              aria-hidden="true"
+              className="from-background/80 absolute inset-0 bg-gradient-to-r via-transparent to-transparent"
+            />
+          </>
+        ) : null}
+        <div className={cn("space-y-3", hasBackdrop && "relative self-end")}>
           <h1 className="page-title text-[clamp(2rem,5vw,3.5rem)]">{title}</h1>
           <CollectionByline access={collectionAccess} />
-          <p className="page-subtitle text-sm sm:text-base">
-            {defaultCatalogSubtitle(state.source)}
-          </p>
+          {isCollectionSource ? (
+            collectionHeader.description ? (
+              <CollectionDescription text={collectionHeader.description} />
+            ) : null
+          ) : (
+            <p className="page-subtitle text-sm sm:text-base">
+              {defaultCatalogSubtitle(state.source)}
+            </p>
+          )}
         </div>
-        <div className="flex flex-col items-start gap-3 sm:items-end">
+        <div
+          className={cn(
+            "flex flex-col items-start gap-3 sm:items-end",
+            hasBackdrop && "relative self-end",
+          )}
+        >
           <CollectionPageActions access={collectionAccess} libraryId={state.library_id} />
           <div
             className={cn(

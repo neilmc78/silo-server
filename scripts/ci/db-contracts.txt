@@ -134,8 +134,8 @@
 ./internal/auth TestUserWithoutEmailOrUsernameDB
 ./internal/auth TestLoginIdentitySpaceDB
 ./internal/auth TestLoginSessionActivityAndAdminRevocationDB
-./internal/auth TestSecondFactorSignInDB
 ./internal/auth TestChangePasswordSignOutOtherSessionsDB
+./internal/auth TestSecondFactorSignInDB
 ./internal/auth TestJellyfinSessionDeleteFailureRollsBackRevocationPostgres
 ./internal/jellycompat TestApplyListFileFieldsDB
 ./internal/jellycompat TestLoginAccountNameWithHashDB

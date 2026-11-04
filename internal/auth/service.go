@@ -123,12 +123,12 @@ type Service struct {
 	// signInAttempts bounds password attempts per sign-in name; nil allows
 	// every attempt (SetSignInAttempts).
 	signInAttempts SignInAttemptLimiter
-	// secondFactors runs the second step of local password sign-in; nil
-	// refuses accounts that have two-step sign-in (SetSecondFactors).
-	secondFactors *SecondFactors
 	// sessionsRevoked runs after a password change signed the account out
 	// of its other sessions; see OnSessionsRevoked.
 	sessionsRevoked func(ctx context.Context, userID int)
+	// secondFactors runs the second step of local password sign-in; nil
+	// refuses accounts that have two-step sign-in (SetSecondFactors).
+	secondFactors *SecondFactors
 }
 
 // PluginProviderSource supplies the current auth-plugin providers. The
