@@ -82,7 +82,11 @@ func TestSecondFactorSignInDB(t *testing.T) {
 		}
 		return c
 	}
-	recovery, err := factors.ConfirmTOTP(ctx, userID, code())
+	// Turning a method on needs the password, as removing one does.
+	if _, err := svc.ConfirmTOTP(ctx, userID, code(), "not-the-password"); !errors.Is(err, ErrCurrentPasswordInvalid) {
+		t.Fatalf("confirm with a wrong password = %v, want ErrCurrentPasswordInvalid", err)
+	}
+	recovery, err := svc.ConfirmTOTP(ctx, userID, code(), "password")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,8 +154,17 @@ func TestSecondFactorSignInDB(t *testing.T) {
 		t.Fatal(err)
 	}
 	clock = clock.Add(30 * time.Second)
-	if _, _, err := svc.CompleteSecondFactor(ctx, challenge, SecondFactorProof{TOTPCode: code()}, "test", "127.0.0.1"); !errors.Is(err, ErrInvalidCredentials) {
+	// The account is checked before the answer, so this neither tests the
+	// recovery code nor uses it, and the refusal spends the challenge.
+	if _, _, err := svc.CompleteSecondFactor(ctx, challenge, SecondFactorProof{RecoveryCode: recovery[1]}, "test", "127.0.0.1"); !errors.Is(err, ErrInvalidCredentials) {
 		t.Fatalf("second step after a password change = %v, want ErrInvalidCredentials", err)
+	}
+	var unused bool
+	if err := pool.QueryRow(ctx, `SELECT used_at IS NULL FROM user_recovery_codes WHERE user_id=$1 AND code_hash=$2`, userID, hashRecoveryCode(recovery[1])).Scan(&unused); err != nil || !unused {
+		t.Fatalf("a refused account's answer used a recovery code (unused=%v, err=%v)", unused, err)
+	}
+	if _, _, err := svc.CompleteSecondFactor(ctx, challenge, SecondFactorProof{RecoveryCode: recovery[1]}, "test", "127.0.0.1"); !errors.Is(err, ErrSecondFactorChallenge) {
+		t.Fatalf("challenge after a refusal = %v, want ErrSecondFactorChallenge", err)
 	}
 	if _, err := pool.Exec(ctx, `UPDATE users SET password_hash = $2 WHERE id=$1`, userID, hash); err != nil {
 		t.Fatal(err)
@@ -181,6 +194,11 @@ func TestSecondFactorSignInDB(t *testing.T) {
 	}
 	if _, err := pool.Exec(ctx, `UPDATE users SET role='user', break_glass=false WHERE id=$1`, userID); err != nil {
 		t.Fatal(err)
+	}
+
+	// An administrator cannot reset their own methods without the password.
+	if err := svc.ResetSecondFactors(ctx, userID, userID); !errors.Is(err, ErrSecondFactorSelfReset) {
+		t.Fatalf("self reset = %v, want ErrSecondFactorSelfReset", err)
 	}
 
 	// An administrator reset turns two-step sign-in off.
