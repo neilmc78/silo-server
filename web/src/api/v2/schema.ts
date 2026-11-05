@@ -6745,7 +6745,7 @@ export interface paths {
     put?: never;
     /**
      * Finish a password sign-in that asked for a second step and open the login session.
-     * @description When login answers 401 second_factor_required, its Silo-Second-Factor-Challenge header names the waiting sign-in and Silo-Second-Factor-Methods lists what the account can use (totp, passkey, recovery). Send exactly one of code, recovery_code or passkey with that challenge. A challenge lasts five minutes, opens one session, and is spent by five wrong answers. Each attempt, and each passkey-options request, spends one of the account's second-step budget, which is separate from the password step's; over budget is 429 rate_limited with Retry-After. A wrong answer is 401 second_factor_invalid. An unknown, used or expired challenge is 401 invalid_token, and so is a challenge whose account changed its password or can no longer sign in with it (the challenge is spent); a disabled account is 403. The client signs in again after an invalid_token.
+     * @description When login answers 401 second_factor_required, its Silo-Second-Factor-Challenge header names the waiting sign-in and Silo-Second-Factor-Methods lists what the account can use (totp, passkey, recovery). Send exactly one of code, recovery_code or passkey with that challenge. A challenge lasts five minutes, opens one session, and is spent by five wrong answers. Each answer spends one of the account's second-step budget, which is separate from the password step's; over budget is 429 rate_limited with Retry-After. Asking for passkey options spends none. A wrong answer is 401 second_factor_invalid. An unknown, used or expired challenge is 401 invalid_token, and so is a challenge whose account changed its password or can no longer sign in with it (the challenge is spent); a disabled account is 403. The client signs in again after an invalid_token.
      */
     post: operations["completeSecondFactorLogin"];
     delete?: never;
@@ -30315,11 +30315,6 @@ export interface components {
         [key: string]: unknown;
       };
       /**
-       * @description The account password; turning a method on needs it, as removing one does
-       * @example correct horse battery staple
-       */
-      current_password: string;
-      /**
        * @description A label for the passkey
        * @example iPhone
        */
@@ -38870,7 +38865,11 @@ export interface operations {
       path?: never;
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SecondFactorPasswordInputBody"];
+      };
+    };
     responses: {
       /** @description OK */
       200: {
@@ -38926,8 +38925,35 @@ export interface operations {
           "application/problem+json": components["schemas"]["Problem"];
         };
       };
+      /** @description Request Timeout */
+      408: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
       /** @description Conflict */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Unsupported Media Type */
+      415: {
         headers: {
           [name: string]: unknown;
         };

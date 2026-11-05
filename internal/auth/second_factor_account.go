@@ -91,8 +91,12 @@ func (s *Service) DisableTOTP(ctx context.Context, userID int, password string) 
 }
 
 // BeginPasskeyRegistration starts adding a passkey to the account.
-func (s *Service) BeginPasskeyRegistration(ctx context.Context, userID int) (string, []byte, error) {
-	f, user, err := s.secondFactorAccount(ctx, userID)
+//
+// It checks the account password before handing out creation options, so a
+// wrong password never leaves a passkey on the device that the server will
+// not store.
+func (s *Service) BeginPasskeyRegistration(ctx context.Context, userID int, password string) (string, []byte, error) {
+	f, user, err := s.secondFactorReauth(ctx, userID, password)
 	if err != nil {
 		return "", nil, err
 	}
@@ -100,9 +104,10 @@ func (s *Service) BeginPasskeyRegistration(ctx context.Context, userID int) (str
 }
 
 // FinishPasskeyRegistration stores the new passkey.
-// It needs the account password, as ConfirmTOTP does.
-func (s *Service) FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name, password string, response []byte) ([]string, error) {
-	f, user, err := s.secondFactorReauth(ctx, userID, password)
+// The registration challenge, which BeginPasskeyRegistration opened only
+// after checking the password, is bound to the account and used once.
+func (s *Service) FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name string, response []byte) ([]string, error) {
+	f, user, err := s.secondFactorAccount(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

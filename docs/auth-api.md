@@ -300,9 +300,9 @@ the same token pair as `login`. A challenge lasts five minutes, opens one
 session, is spent by five wrong answers, and stops working if the password
 changes between the steps. The account is re-checked before the answer, so a
 challenge whose account changed its password, was disabled or lost local
-sign-in is spent without the answer being checked. Each answer, and each
-passkey-options request, spends one attempt of the account's second-step
-budget, which is separate from the password step's name budget (see
+sign-in is spent without the answer being checked. Each answer spends one
+attempt of the account's second-step budget, which is separate from the
+password step's name budget (see
 "Sign-in attempts per name"); a correct password clears its name budget but
 never the second-step budget. Over budget is `429 rate_limited`. A wrong answer is `401
 second_factor_invalid`; an unknown, used or expired challenge is `401
@@ -325,12 +325,27 @@ The account manages its methods under `/api/v2/account/second-factors` with
 the rules of `changePassword` (the primary profile on a plain login session).
 Turning a method on, removing one, or replacing the recovery codes needs
 `current_password`, so a stolen session alone cannot put a method in front of
-the owner's next sign-in. A passkey whose signature counter goes backwards is
+the owner's next sign-in. For a passkey the password goes with the request for
+creation options, so a wrong one never leaves a passkey on the device that the
+server will not store. A code or passkey refused while turning a method on is
+`422 validation_failed` at `body.code` or `body.credential`. A passkey whose signature counter goes backwards is
 refused as a possible clone. Turning methods on or off, and administrator
 resets, are logged (`component=auth`).
 An administrator can remove all of an account's methods with `DELETE
 /api/v2/admin/users/{id}/second-factors`; the Owner rules apply, and an
-administrator cannot reset their own account this way (`409 conflict`). The
+administrator cannot reset their own account this way (`409 conflict`).
+
+A full restore from a backup keeps the live server's authenticator secrets,
+passkeys and recovery codes, as it does API keys, so it never brings back a
+method removed since the backup or drops one added since. Sign-ins waiting on
+their second step are not backed up.
+
+Known limits: someone who has the password can keep an enrolled account's
+second-step budget used up, which also delays its owner, until the password is
+changed (an administrator can set a new one). Turning a method on does not end
+other sessions, Jellyfin or Audiobookshelf tokens, or API keys. Moving server
+ownership makes the new Owner break-glass, which stops asking for its second
+step. The
 authenticator secret is stored encrypted with the data cipher, bound to its
 row; recovery codes are stored as SHA-256 hashes.
 
