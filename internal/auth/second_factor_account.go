@@ -2,7 +2,9 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/Silo-Server/silo-server/internal/models"
 )
@@ -59,12 +61,20 @@ func (s *Service) BeginTOTP(ctx context.Context, userID int) (*TOTPSetup, error)
 }
 
 // ConfirmTOTP turns the authenticator on; see SecondFactors.ConfirmTOTP.
-func (s *Service) ConfirmTOTP(ctx context.Context, userID int, code string) ([]string, error) {
-	f, _, err := s.secondFactorAccount(ctx, userID)
+//
+// Turning a method on needs the account password, as removing one does: a
+// stolen session alone must not be able to put a method the attacker holds
+// in front of the owner's next sign-in.
+func (s *Service) ConfirmTOTP(ctx context.Context, userID int, code, password string) ([]string, error) {
+	f, _, err := s.secondFactorReauth(ctx, userID, password)
 	if err != nil {
 		return nil, err
 	}
-	return f.ConfirmTOTP(ctx, userID, code)
+	codes, err := f.ConfirmTOTP(ctx, userID, code)
+	if err == nil {
+		slog.InfoContext(ctx, "authenticator app turned on", "component", "auth", "user_id", userID)
+	}
+	return codes, err
 }
 
 // DisableTOTP removes the authenticator after checking the password.
@@ -73,7 +83,11 @@ func (s *Service) DisableTOTP(ctx context.Context, userID int, password string) 
 	if err != nil {
 		return err
 	}
-	return f.DisableTOTP(ctx, userID)
+	if err := f.DisableTOTP(ctx, userID); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "authenticator app removed", "component", "auth", "user_id", userID)
+	return nil
 }
 
 // BeginPasskeyRegistration starts adding a passkey to the account.
@@ -86,12 +100,17 @@ func (s *Service) BeginPasskeyRegistration(ctx context.Context, userID int) (str
 }
 
 // FinishPasskeyRegistration stores the new passkey.
-func (s *Service) FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name string, response []byte) ([]string, error) {
-	f, user, err := s.secondFactorAccount(ctx, userID)
+// It needs the account password, as ConfirmTOTP does.
+func (s *Service) FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name, password string, response []byte) ([]string, error) {
+	f, user, err := s.secondFactorReauth(ctx, userID, password)
 	if err != nil {
 		return nil, err
 	}
-	return f.FinishPasskeyRegistration(ctx, user, challengeID, name, response)
+	codes, err := f.FinishPasskeyRegistration(ctx, user, challengeID, name, response)
+	if err == nil {
+		slog.InfoContext(ctx, "passkey added", "component", "auth", "user_id", userID)
+	}
+	return codes, err
 }
 
 // RemovePasskey removes a passkey after checking the password.
@@ -100,7 +119,11 @@ func (s *Service) RemovePasskey(ctx context.Context, userID int, passkeyID int64
 	if err != nil {
 		return err
 	}
-	return f.RemovePasskey(ctx, userID, passkeyID)
+	if err := f.RemovePasskey(ctx, userID, passkeyID); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "passkey removed", "component", "auth", "user_id", userID)
+	return nil
 }
 
 // RegenerateRecoveryCodes replaces the recovery codes after checking the
@@ -113,6 +136,10 @@ func (s *Service) RegenerateRecoveryCodes(ctx context.Context, userID int, passw
 	return f.RegenerateRecoveryCodes(ctx, userID)
 }
 
+// ErrSecondFactorSelfReset refuses an administrator resetting their own
+// two-step sign-in, which the account operations do with the password.
+var ErrSecondFactorSelfReset = errors.New("remove your own sign-in methods from your account settings")
+
 // ResetSecondFactors removes every second factor of an account; for an
 // administrator helping someone who lost their device. The Owner rules
 // apply: only the Owner may reset another admin.
@@ -123,8 +150,18 @@ func (s *Service) ResetSecondFactors(ctx context.Context, actorID, userID int) e
 	if _, err := s.users.GetByID(ctx, userID); err != nil {
 		return err
 	}
+	// An administrator's own methods come off through the account
+	// operations, which ask for the password; a stolen admin session must
+	// not strip them without it.
+	if actorID == userID {
+		return ErrSecondFactorSelfReset
+	}
 	if err := s.users.CheckOwnerTargetByID(ctx, actorID, userID); err != nil {
 		return err
 	}
-	return s.secondFactors.ResetAll(ctx, userID)
+	if err := s.secondFactors.ResetAll(ctx, userID); err != nil {
+		return err
+	}
+	slog.InfoContext(ctx, "two-step sign-in reset by an administrator", "component", "auth", "user_id", userID, "actor_id", actorID)
+	return nil
 }
