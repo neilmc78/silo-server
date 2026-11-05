@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
@@ -397,11 +398,17 @@ type SecondFactorStatus struct {
 	RecoveryCodesLeft    int
 	PasskeysAvailable    bool
 	PasswordLoginAccount bool
+	// BreakGlass accounts always sign in with the password alone; methods
+	// they held before becoming break-glass are kept but not asked for.
+	BreakGlass bool
 }
 
 // Status reports the account's second factors.
 func (f *SecondFactors) Status(ctx context.Context, user *models.User) (*SecondFactorStatus, error) {
-	st := &SecondFactorStatus{PasswordLoginAccount: secondFactorEligible(user) == nil}
+	st := &SecondFactorStatus{
+		PasswordLoginAccount: secondFactorEligible(user) == nil,
+		BreakGlass:           user.BreakGlass,
+	}
 	if err := f.pool.QueryRow(ctx, `
 		SELECT EXISTS (SELECT 1 FROM user_totp WHERE user_id = $1 AND confirmed_at IS NOT NULL),
 		       (SELECT COUNT(*) FROM user_recovery_codes WHERE user_id = $1 AND used_at IS NULL)`, user.ID).
@@ -726,6 +733,12 @@ func (f *SecondFactors) check(ctx context.Context, tx pgx.Tx, ch *challengeRow, 
 		}
 		cred, err := rp.ValidateLogin(pu, session, parsed)
 		if err != nil {
+			return false, nil
+		}
+		// A signature counter that went backwards means the authenticator
+		// may have been cloned; refuse rather than sign in with it.
+		if cred.Authenticator.CloneWarning {
+			slog.WarnContext(ctx, "passkey refused: its signature counter went backwards", "component", "auth", "user_id", ch.userID)
 			return false, nil
 		}
 		raw, err := json.Marshal(cred)

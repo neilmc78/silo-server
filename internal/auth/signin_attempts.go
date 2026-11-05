@@ -71,7 +71,10 @@ func (s *Service) reserveSignIn(ctx context.Context, name string) error {
 // change. Every other outcome, outages included, keeps the attempt counted.
 // The count is cleared even when the client has already hung up.
 func (s *Service) finishSignIn(ctx context.Context, name string, err error) {
-	if s.signInAttempts == nil || (err != nil && !errors.Is(err, ErrPasswordChangeRequired)) {
+	// A password that matched clears the budget even when the sign-in still
+	// waits on its second step, which has a budget of its own.
+	var stepUp *SecondFactorRequiredError
+	if s.signInAttempts == nil || (err != nil && !errors.Is(err, ErrPasswordChangeRequired) && !errors.As(err, &stepUp)) {
 		return
 	}
 	s.signInAttempts.Reset(context.WithoutCancel(ctx), signInAttemptKey(name))
