@@ -85,13 +85,13 @@ func (h *AuthHandler) DisableTOTP(ctx context.Context, userID int, password stri
 }
 
 // BeginPasskeyRegistration starts adding a passkey.
-func (h *AuthHandler) BeginPasskeyRegistration(ctx context.Context, userID int) (string, []byte, error) {
-	return h.service.BeginPasskeyRegistration(ctx, userID)
+func (h *AuthHandler) BeginPasskeyRegistration(ctx context.Context, userID int, password string) (string, []byte, error) {
+	return h.service.BeginPasskeyRegistration(ctx, userID, password)
 }
 
 // FinishPasskeyRegistration stores a new passkey.
-func (h *AuthHandler) FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name, password string, response []byte) ([]string, error) {
-	return h.service.FinishPasskeyRegistration(ctx, userID, challengeID, name, password, response)
+func (h *AuthHandler) FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name string, response []byte) ([]string, error) {
+	return h.service.FinishPasskeyRegistration(ctx, userID, challengeID, name, response)
 }
 
 // RemovePasskey removes a passkey.
