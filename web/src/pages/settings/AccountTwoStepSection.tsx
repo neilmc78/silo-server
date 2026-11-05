@@ -132,6 +132,10 @@ export function AccountTwoStepSection() {
   const [confirming, setConfirming] = useState<null | "totp" | "codes" | { passkey: string }>(null);
   const [error, setError] = useState<string | null>(null);
   const [passkeyName, setPasskeyName] = useState("");
+  // Turning a method on asks for the password, as removing one does.
+  // Each form has its own password, cleared when it closes or fails.
+  const [totpPassword, setTotpPassword] = useState("");
+  const [passkeyPassword, setPasskeyPassword] = useState("");
 
   const begin = useMutation({
     mutationFn: () => v2("POST /api/v2/account/second-factors/totp"),
@@ -144,15 +148,21 @@ export function AccountTwoStepSection() {
   });
   const confirm = useMutation({
     mutationFn: (value: string) =>
-      v2("POST /api/v2/account/second-factors/totp/confirm", { body: { code: value } }),
+      v2("POST /api/v2/account/second-factors/totp/confirm", {
+        body: { code: value, current_password: totpPassword },
+      }),
     onSuccess: (data) => {
       setSetup(null);
+      setTotpPassword("");
       setError(null);
       if (data.recovery_codes.length > 0) setCodes(data.recovery_codes);
       toast.success("Authenticator app turned on");
       void refresh();
     },
-    onError: (err) => setError(errorText(err, "Could not turn the authenticator on.")),
+    onError: (err) => {
+      setTotpPassword("");
+      setError(errorText(err, "Could not turn the authenticator on."));
+    },
   });
   const removeTOTP = useMutation({
     mutationFn: (password: string) =>
@@ -184,6 +194,7 @@ export function AccountTwoStepSection() {
     mutationFn: async () => {
       const { challenge_id, options } = await v2(
         "POST /api/v2/account/second-factors/passkeys/options",
+        { body: { current_password: passkeyPassword } },
       );
       const credential = await createPasskey(options as Record<string, unknown>);
       return v2("POST /api/v2/account/second-factors/passkeys", {
@@ -196,12 +207,16 @@ export function AccountTwoStepSection() {
     },
     onSuccess: (data) => {
       setPasskeyName("");
+      setPasskeyPassword("");
       setError(null);
       if (data.recovery_codes.length > 0) setCodes(data.recovery_codes);
       toast.success("Passkey added");
       void refresh();
     },
-    onError: (err) => setError(errorText(err, "Could not add the passkey.")),
+    onError: (err) => {
+      setPasskeyPassword("");
+      setError(errorText(err, "Could not add the passkey."));
+    },
   });
   const removePasskey = useMutation({
     mutationFn: ({ id, password }: { id: string; password: string }) =>
@@ -230,6 +245,16 @@ export function AccountTwoStepSection() {
   }
   // A provider-only account, a secondary profile or a server without the
   // feature: nothing to manage here.
+  if (status.data?.break_glass) {
+    return (
+      <SettingsGroup title="Two-step sign-in">
+        <p className="text-muted-foreground max-w-2xl text-sm">
+          This is a break-glass account: it always signs in with its password alone, so it stays a
+          way back in if other sign-in methods fail. Two-step sign-in can't be turned on for it.
+        </p>
+      </SettingsGroup>
+    );
+  }
   if (status.isError || !status.data?.available) return null;
   const st = status.data;
 
@@ -306,10 +331,28 @@ export function AccountTwoStepSection() {
                     required
                   />
                 </div>
+                <div className="min-w-40 flex-1 space-y-1">
+                  <Label htmlFor="two-step-totp-password">Current password</Label>
+                  <Input
+                    id="two-step-totp-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={totpPassword}
+                    onChange={(e) => setTotpPassword(e.target.value)}
+                    required
+                  />
+                </div>
                 <Button type="submit" disabled={confirm.isPending}>
                   Turn on
                 </Button>
-                <Button type="button" variant="ghost" onClick={() => setSetup(null)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    setSetup(null);
+                    setTotpPassword("");
+                  }}
+                >
                   Cancel
                 </Button>
               </form>
@@ -390,6 +433,17 @@ export function AccountTwoStepSection() {
                   onChange={(e) => setPasskeyName(e.target.value)}
                   placeholder="iPhone"
                   maxLength={64}
+                />
+              </div>
+              <div className="min-w-40 flex-1 space-y-1">
+                <Label htmlFor="two-step-passkey-password">Current password</Label>
+                <Input
+                  id="two-step-passkey-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={passkeyPassword}
+                  onChange={(e) => setPasskeyPassword(e.target.value)}
+                  required
                 />
               </div>
               <Button type="submit" variant="outline" disabled={addPasskey.isPending}>

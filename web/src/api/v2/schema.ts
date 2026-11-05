@@ -6291,7 +6291,7 @@ export interface paths {
     post?: never;
     /**
      * Remove every two-step sign-in method of an account.
-     * @description For someone who lost their authenticator or passkey: afterwards the account signs in with its password alone until it sets two-step sign-in up again.
+     * @description For someone who lost their authenticator or passkey: afterwards the account signs in with its password alone until it sets two-step sign-in up again. An administrator cannot reset their own account (409 conflict); they remove their methods from account settings, which asks for the password.
      */
     delete: operations["resetAdminUserSecondFactors"];
     options?: never;
@@ -6745,7 +6745,7 @@ export interface paths {
     put?: never;
     /**
      * Finish a password sign-in that asked for a second step and open the login session.
-     * @description When login answers 401 second_factor_required, its Silo-Second-Factor-Challenge header names the waiting sign-in and Silo-Second-Factor-Methods lists what the account can use (totp, passkey, recovery). Send exactly one of code, recovery_code or passkey with that challenge. A challenge lasts five minutes, opens one session, and is spent by five wrong answers. Each attempt spends the account's sign-in budget like a password attempt. A wrong answer is 401 second_factor_invalid; an unknown, used or expired challenge is 401 invalid_token, and the client signs in again.
+     * @description When login answers 401 second_factor_required, its Silo-Second-Factor-Challenge header names the waiting sign-in and Silo-Second-Factor-Methods lists what the account can use (totp, passkey, recovery). Send exactly one of code, recovery_code or passkey with that challenge. A challenge lasts five minutes, opens one session, and is spent by five wrong answers. Each answer spends one of the account's second-step budget, which is separate from the password step's; over budget is 429 rate_limited with Retry-After. Asking for passkey options spends none. A wrong answer is 401 second_factor_invalid. An unknown, used or expired challenge is 401 invalid_token, and so is a challenge whose account changed its password or can no longer sign in with it (the challenge is spent); a disabled account is 403. The client signs in again after an invalid_token.
      */
     post: operations["completeSecondFactorLogin"];
     delete?: never;
@@ -33476,6 +33476,11 @@ export interface components {
        */
       available: boolean;
       /**
+       * @description A break-glass account: it always signs in with its password alone, so two-step sign-in is off for it and cannot be set up
+       * @example false
+       */
+      break_glass: boolean;
+      /**
        * @description Whether password sign-in asks for a second step
        * @example true
        */
@@ -35247,6 +35252,11 @@ export interface components {
        * @example 123456
        */
       code: string;
+      /**
+       * @description The account password; turning a method on needs it, as removing one does
+       * @example correct horse battery staple
+       */
+      current_password: string;
     };
     TOTPSetupOutputBody: {
       /**
@@ -38855,7 +38865,11 @@ export interface operations {
       path?: never;
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SecondFactorPasswordInputBody"];
+      };
+    };
     responses: {
       /** @description OK */
       200: {
@@ -38911,8 +38925,35 @@ export interface operations {
           "application/problem+json": components["schemas"]["Problem"];
         };
       };
+      /** @description Request Timeout */
+      408: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
       /** @description Conflict */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Unsupported Media Type */
+      415: {
         headers: {
           [name: string]: unknown;
         };
@@ -93875,6 +93916,15 @@ export interface operations {
       };
       /** @description Not Acceptable */
       406: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Conflict */
+      409: {
         headers: {
           [name: string]: unknown;
         };

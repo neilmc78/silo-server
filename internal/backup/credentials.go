@@ -181,12 +181,31 @@ var secretTables = []secretTable{
 	{name: "watch_together_suggestions", handling: secretLeftOut, why: watchTogether},
 	{name: "watch_together_votes", handling: secretLeftOut, why: watchTogether},
 	{name: "history_import_run_credentials", handling: secretLeftOut, why: "the provider credentials of a history import in progress"},
+	{name: "auth_challenges", handling: secretLeftOut, why: "two-step sign-ins and passkey registrations in progress"},
 	{name: "backup_status", handling: secretLeftOut, why: "describes the backup being taken, which would read as a stale run after a restore"},
 
 	{name: tableAPIKeys, handling: secretCarried, why: "API keys", carry: &carrySpec{
 		key: "id", same: []string{"id", columnUserID, "key_hash", "key_prefix"}, credential: everyRow,
 		owned: ownerCarried(columnUserID), owners: []string{columnUserID},
 		describe: `format('API key %s %L (account %s)', r.id, r.label, r.user_id)`,
+	}},
+	// Two-step sign-in methods: a restore must not bring back a passkey or
+	// recovery code removed since the backup, undo an administrator's reset,
+	// or drop a method turned on since.
+	{name: "user_totp", handling: secretCarried, why: "authenticator app secrets of two-step sign-in", carry: &carrySpec{
+		key: columnUserID, same: []string{columnUserID, "secret_enc"}, credential: everyRow,
+		owned: ownerCarried(columnUserID), owners: []string{columnUserID},
+		describe: `format('authenticator app (account %s)', r.user_id)`,
+	}},
+	{name: "user_passkeys", handling: secretCarried, why: "passkeys of two-step sign-in", carry: &carrySpec{
+		key: "id", same: []string{"id", columnUserID, "credential_id"}, credential: everyRow,
+		owned: ownerCarried(columnUserID), owners: []string{columnUserID},
+		describe: `format('passkey %s %L (account %s)', r.id, r.name, r.user_id)`,
+	}},
+	{name: "user_recovery_codes", handling: secretCarried, why: "one-time recovery codes of two-step sign-in", carry: &carrySpec{
+		key: columnUserID + ", code_hash", same: []string{columnUserID, "code_hash"}, credential: everyRow,
+		owned: ownerCarried(columnUserID), owners: []string{columnUserID},
+		describe: `format('recovery code (account %s)', r.user_id)`,
 	}},
 	{name: "invitations", handling: secretCarried, why: "pending invitations", carry: &carrySpec{
 		key: "id", same: []string{"id", "token_hash"}, credential: `t.accepted_at IS NULL AND t.revoked_at IS NULL`,

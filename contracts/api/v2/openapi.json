@@ -49980,6 +49980,13 @@
             ],
             "type": "boolean"
           },
+          "break_glass": {
+            "description": "A break-glass account: it always signs in with its password alone, so two-step sign-in is off for it and cannot be set up",
+            "examples": [
+              false
+            ],
+            "type": "boolean"
+          },
           "enabled": {
             "description": "Whether password sign-in asks for a second step",
             "examples": [
@@ -50019,6 +50026,7 @@
         },
         "required": [
           "available",
+          "break_glass",
           "enabled",
           "totp_enabled",
           "passkeys",
@@ -53783,10 +53791,20 @@
             "maxLength": 16,
             "minLength": 1,
             "type": "string"
+          },
+          "current_password": {
+            "description": "The account password; turning a method on needs it, as removing one does",
+            "examples": [
+              "correct horse battery staple"
+            ],
+            "maxLength": 1024,
+            "minLength": 1,
+            "type": "string"
           }
         },
         "required": [
-          "code"
+          "code",
+          "current_password"
         ],
         "type": "object"
       },
@@ -60792,6 +60810,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecondFactorPasswordInputBody"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -60853,6 +60881,16 @@
             },
             "description": "Not Acceptable"
           },
+          "408": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request Timeout"
+          },
           "409": {
             "content": {
               "application/problem+json": {
@@ -60862,6 +60900,26 @@
               }
             },
             "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
           },
           "422": {
             "content": {
@@ -141800,7 +141858,7 @@
     },
     "/api/v2/admin/users/{id}/second-factors": {
       "delete": {
-        "description": "For someone who lost their authenticator or passkey: afterwards the account signs in with its password alone until it sets two-step sign-in up again.",
+        "description": "For someone who lost their authenticator or passkey: afterwards the account signs in with its password alone until it sets two-step sign-in up again. An administrator cannot reset their own account (409 conflict); they remove their methods from account settings, which asks for the password.",
         "operationId": "resetAdminUserSecondFactors",
         "parameters": [
           {
@@ -141893,6 +141951,16 @@
               }
             },
             "description": "Not Acceptable"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {
@@ -146416,7 +146484,7 @@
     },
     "/api/v2/auth/login/second-factor": {
       "post": {
-        "description": "When login answers 401 second_factor_required, its Silo-Second-Factor-Challenge header names the waiting sign-in and Silo-Second-Factor-Methods lists what the account can use (totp, passkey, recovery). Send exactly one of code, recovery_code or passkey with that challenge. A challenge lasts five minutes, opens one session, and is spent by five wrong answers. Each attempt spends the account's sign-in budget like a password attempt. A wrong answer is 401 second_factor_invalid; an unknown, used or expired challenge is 401 invalid_token, and the client signs in again.",
+        "description": "When login answers 401 second_factor_required, its Silo-Second-Factor-Challenge header names the waiting sign-in and Silo-Second-Factor-Methods lists what the account can use (totp, passkey, recovery). Send exactly one of code, recovery_code or passkey with that challenge. A challenge lasts five minutes, opens one session, and is spent by five wrong answers. Each answer spends one of the account's second-step budget, which is separate from the password step's; over budget is 429 rate_limited with Retry-After. Asking for passkey options spends none. A wrong answer is 401 second_factor_invalid. An unknown, used or expired challenge is 401 invalid_token, and so is a challenge whose account changed its password or can no longer sign in with it (the challenge is spent); a disabled account is 403. The client signs in again after an invalid_token.",
         "operationId": "completeSecondFactorLogin",
         "requestBody": {
           "content": {
