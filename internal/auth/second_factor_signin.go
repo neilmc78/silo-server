@@ -92,19 +92,13 @@ func (s *Service) clearSecondStep(ctx context.Context, userID int) {
 }
 
 // PasskeySignInOptions returns the WebAuthn options for a sign-in waiting on
-// its second step. Each call spends one attempt of the account's
-// second-step budget, as an answer does.
+// its second step. It spends no attempt: asking for options proves nothing,
+// and charging it would let someone holding the password exhaust the
+// owner's budget without even answering.
 func (s *Service) PasskeySignInOptions(ctx context.Context, challengeID string) ([]byte, error) {
 	f := s.secondFactors
 	if f == nil {
 		return nil, ErrSecondFactorsUnavailable
-	}
-	ch, err := f.readChallenge(ctx, s.users.pool, challengeID, challengeSignIn, false)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.reserveSecondStep(ctx, ch.userID); err != nil {
-		return nil, err
 	}
 	return f.PasskeySignInOptions(ctx, challengeID)
 }
