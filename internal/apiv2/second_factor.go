@@ -20,10 +20,10 @@ type SecondFactorService interface {
 	PasskeySignInOptions(ctx context.Context, challengeID string) ([]byte, error)
 	SecondFactorStatus(ctx context.Context, userID int) (*auth.SecondFactorStatus, error)
 	BeginTOTP(ctx context.Context, userID int) (*auth.TOTPSetup, error)
-	ConfirmTOTP(ctx context.Context, userID int, code string) ([]string, error)
+	ConfirmTOTP(ctx context.Context, userID int, code, password string) ([]string, error)
 	DisableTOTP(ctx context.Context, userID int, password string) error
 	BeginPasskeyRegistration(ctx context.Context, userID int) (string, []byte, error)
-	FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name string, response []byte) ([]string, error)
+	FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name, password string, response []byte) ([]string, error)
 	RemovePasskey(ctx context.Context, userID int, id int64, password string) error
 	RegenerateRecoveryCodes(ctx context.Context, userID int, password string) ([]string, error)
 	ResetSecondFactors(ctx context.Context, userID int) error
@@ -75,6 +75,7 @@ type SecondFactorPasskey struct {
 // SecondFactorStatusBody is what the account has set up.
 type SecondFactorStatusBody struct {
 	Available         bool                  `json:"available" doc:"Whether the account can use two-step sign-in: it signs in with a local password and is not a break-glass account" example:"true"`
+	BreakGlass        bool                  `json:"break_glass" doc:"A break-glass account: it always signs in with its password alone, so two-step sign-in is off for it and cannot be set up" example:"false"`
 	Enabled           bool                  `json:"enabled" doc:"Whether password sign-in asks for a second step" example:"true"`
 	TOTPEnabled       bool                  `json:"totp_enabled" doc:"Whether an authenticator app is set up" example:"true"`
 	Passkeys          []SecondFactorPasskey `json:"passkeys" doc:"Registered passkeys; empty, never null"`
@@ -98,7 +99,8 @@ type TOTPSetupOutput struct {
 // TOTPConfirmInput proves the authenticator app with its first code.
 type TOTPConfirmInput struct {
 	Body struct {
-		Code string `json:"code" minLength:"1" maxLength:"16" doc:"The code the app shows" example:"123456"`
+		Code            string `json:"code" minLength:"1" maxLength:"16" doc:"The code the app shows" example:"123456"`
+		CurrentPassword string `json:"current_password" minLength:"1" maxLength:"1024" doc:"The account password; turning a method on needs it, as removing one does" example:"correct horse battery staple"`
 	}
 }
 
@@ -119,9 +121,10 @@ type SecondFactorPasswordInput struct {
 // PasskeyRegisterInput stores the credential the browser created.
 type PasskeyRegisterInput struct {
 	Body struct {
-		ChallengeID string         `json:"challenge_id" minLength:"1" maxLength:"128" doc:"The challenge from createAccountPasskeyOptions" example:"MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43UOV3HO6DZPI"`
-		Name        string         `json:"name,omitempty" maxLength:"64" doc:"A label for the passkey" example:"iPhone"`
-		Credential  map[string]any `json:"credential" doc:"The PublicKeyCredential from navigator.credentials.create, JSON-encoded"`
+		ChallengeID     string         `json:"challenge_id" minLength:"1" maxLength:"128" doc:"The challenge from createAccountPasskeyOptions" example:"MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43UOV3HO6DZPI"`
+		Name            string         `json:"name,omitempty" maxLength:"64" doc:"A label for the passkey" example:"iPhone"`
+		Credential      map[string]any `json:"credential" doc:"The PublicKeyCredential from navigator.credentials.create, JSON-encoded"`
+		CurrentPassword string         `json:"current_password" minLength:"1" maxLength:"1024" doc:"The account password; turning a method on needs it, as removing one does" example:"correct horse battery staple"`
 	}
 }
 
@@ -136,7 +139,7 @@ type PasskeyRemoveInput struct {
 func registerSecondFactor(reg *Registry) {
 	complete := humaOp(http.MethodPost, Prefix+"/auth/login/second-factor", "completeSecondFactorLogin", "auth",
 		"Finish a password sign-in that asked for a second step and open the login session.")
-	complete.Description = "When login answers 401 second_factor_required, its Silo-Second-Factor-Challenge header names the waiting sign-in and Silo-Second-Factor-Methods lists what the account can use (totp, passkey, recovery). Send exactly one of code, recovery_code or passkey with that challenge. A challenge lasts five minutes, opens one session, and is spent by five wrong answers. Each attempt spends the account's sign-in budget like a password attempt. A wrong answer is 401 second_factor_invalid; an unknown, used or expired challenge is 401 invalid_token, and the client signs in again."
+	complete.Description = "When login answers 401 second_factor_required, its Silo-Second-Factor-Challenge header names the waiting sign-in and Silo-Second-Factor-Methods lists what the account can use (totp, passkey, recovery). Send exactly one of code, recovery_code or passkey with that challenge. A challenge lasts five minutes, opens one session, and is spent by five wrong answers. Each attempt, and each passkey-options request, spends one of the account's second-step budget, which is separate from the password step's; over budget is 429 rate_limited with Retry-After. A wrong answer is 401 second_factor_invalid. An unknown, used or expired challenge is 401 invalid_token, and so is a challenge whose account changed its password or can no longer sign in with it (the challenge is spent); a disabled account is 403. The client signs in again after an invalid_token."
 	complete.Errors = []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusTooManyRequests}
 	Register(reg, Operation{
 		Operation:   complete,
@@ -178,8 +181,8 @@ func registerSecondFactor(reg *Registry) {
 
 	reset := humaOp(http.MethodDelete, Prefix+"/admin/users/{id}/second-factors", "resetAdminUserSecondFactors", "admin-users",
 		"Remove every two-step sign-in method of an account.")
-	reset.Description = "For someone who lost their authenticator or passkey: afterwards the account signs in with its password alone until it sets two-step sign-in up again."
-	reset.Errors = []int{http.StatusNotFound}
+	reset.Description = "For someone who lost their authenticator or passkey: afterwards the account signs in with its password alone until it sets two-step sign-in up again. An administrator cannot reset their own account (409 conflict); they remove their methods from account settings, which asks for the password."
+	reset.Errors = []int{http.StatusNotFound, http.StatusConflict}
 	Register(reg, Operation{Operation: reset, Class: ClassActingAdmin, DemoRestricted: true, ServiceBacked: true, RetrySafety: RetrySafetyNaturalIdempotent}, reg.resetAdminUserSecondFactors)
 }
 
@@ -203,7 +206,7 @@ func secondFactorProblem(err error) *Problem {
 		return unavailable("two-step sign-in")
 	case errors.Is(err, auth.ErrTOTPAlreadyEnabled), errors.Is(err, auth.ErrTOTPNotPending),
 		errors.Is(err, auth.ErrConflictPasskey), errors.Is(err, auth.ErrPasswordLoginDisabled),
-		errors.Is(err, auth.ErrBreakGlassNoSecondFactor):
+		errors.Is(err, auth.ErrBreakGlassNoSecondFactor), errors.Is(err, auth.ErrSecondFactorSelfReset):
 		return NewProblem(TypeConflict, capitalize(err.Error())+".")
 	case errors.Is(err, auth.ErrSecondFactorNotFound), auth.IsNotFound(err):
 		return NewProblem(TypeNotFound, "Not found.")
@@ -310,7 +313,8 @@ func (reg *Registry) getAccountSecondFactors(ctx context.Context, _ *struct{}) (
 	}
 	body := SecondFactorStatusBody{
 		Available:         st.PasswordLoginAccount,
-		Enabled:           st.TOTPEnabled || len(st.Passkeys) > 0,
+		Enabled:           !st.BreakGlass && (st.TOTPEnabled || len(st.Passkeys) > 0),
+		BreakGlass:        st.BreakGlass,
 		TOTPEnabled:       st.TOTPEnabled,
 		Passkeys:          make([]SecondFactorPasskey, 0, len(st.Passkeys)),
 		PasskeysAvailable: st.PasskeysAvailable,
@@ -354,7 +358,7 @@ func (reg *Registry) confirmAccountTOTP(ctx context.Context, in *TOTPConfirmInpu
 	if p != nil {
 		return nil, p
 	}
-	codes, err := svc.ConfirmTOTP(ctx, userID, in.Body.Code)
+	codes, err := svc.ConfirmTOTP(ctx, userID, in.Body.Code, in.Body.CurrentPassword)
 	if err != nil {
 		return nil, secondFactorProblem(err)
 	}
@@ -393,7 +397,7 @@ func (reg *Registry) createAccountPasskey(ctx context.Context, in *PasskeyRegist
 	if err != nil {
 		return nil, NewProblem(TypeSecondFactorInvalid, "The passkey response could not be read.")
 	}
-	codes, err := svc.FinishPasskeyRegistration(ctx, userID, in.Body.ChallengeID, in.Body.Name, raw)
+	codes, err := svc.FinishPasskeyRegistration(ctx, userID, in.Body.ChallengeID, in.Body.Name, in.Body.CurrentPassword, raw)
 	if err != nil {
 		return nil, secondFactorProblem(err)
 	}
