@@ -132,6 +132,8 @@ export function AccountTwoStepSection() {
   const [confirming, setConfirming] = useState<null | "totp" | "codes" | { passkey: string }>(null);
   const [error, setError] = useState<string | null>(null);
   const [passkeyName, setPasskeyName] = useState("");
+  // Turning a method on asks for the password, as removing one does.
+  const [addPassword, setAddPassword] = useState("");
 
   const begin = useMutation({
     mutationFn: () => v2("POST /api/v2/account/second-factors/totp"),
@@ -144,9 +146,12 @@ export function AccountTwoStepSection() {
   });
   const confirm = useMutation({
     mutationFn: (value: string) =>
-      v2("POST /api/v2/account/second-factors/totp/confirm", { body: { code: value } }),
+      v2("POST /api/v2/account/second-factors/totp/confirm", {
+        body: { code: value, current_password: addPassword },
+      }),
     onSuccess: (data) => {
       setSetup(null);
+      setAddPassword("");
       setError(null);
       if (data.recovery_codes.length > 0) setCodes(data.recovery_codes);
       toast.success("Authenticator app turned on");
@@ -190,12 +195,14 @@ export function AccountTwoStepSection() {
         body: {
           challenge_id: challenge_id ?? "",
           name: passkeyName.trim() || undefined,
+          current_password: addPassword,
           credential,
         },
       });
     },
     onSuccess: (data) => {
       setPasskeyName("");
+      setAddPassword("");
       setError(null);
       if (data.recovery_codes.length > 0) setCodes(data.recovery_codes);
       toast.success("Passkey added");
@@ -230,6 +237,16 @@ export function AccountTwoStepSection() {
   }
   // A provider-only account, a secondary profile or a server without the
   // feature: nothing to manage here.
+  if (status.data?.break_glass) {
+    return (
+      <SettingsGroup title="Two-step sign-in">
+        <p className="text-muted-foreground max-w-2xl text-sm">
+          This is a break-glass account: it always signs in with its password alone, so it stays a
+          way back in if other sign-in methods fail. Two-step sign-in can't be turned on for it.
+        </p>
+      </SettingsGroup>
+    );
+  }
   if (status.isError || !status.data?.available) return null;
   const st = status.data;
 
@@ -303,6 +320,17 @@ export function AccountTwoStepSection() {
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     maxLength={8}
+                    required
+                  />
+                </div>
+                <div className="min-w-40 flex-1 space-y-1">
+                  <Label htmlFor="two-step-totp-password">Current password</Label>
+                  <Input
+                    id="two-step-totp-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={addPassword}
+                    onChange={(e) => setAddPassword(e.target.value)}
                     required
                   />
                 </div>
@@ -390,6 +418,17 @@ export function AccountTwoStepSection() {
                   onChange={(e) => setPasskeyName(e.target.value)}
                   placeholder="iPhone"
                   maxLength={64}
+                />
+              </div>
+              <div className="min-w-40 flex-1 space-y-1">
+                <Label htmlFor="two-step-passkey-password">Current password</Label>
+                <Input
+                  id="two-step-passkey-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={addPassword}
+                  onChange={(e) => setAddPassword(e.target.value)}
+                  required
                 />
               </div>
               <Button type="submit" variant="outline" disabled={addPasskey.isPending}>
