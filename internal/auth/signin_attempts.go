@@ -74,7 +74,7 @@ func (s *Service) finishSignIn(ctx context.Context, name string, err error) {
 	// A password that matched clears the budget even when the sign-in still
 	// waits on its second step, which has a budget of its own.
 	var stepUp *SecondFactorRequiredError
-	if s.signInAttempts == nil || (err != nil && !errors.Is(err, ErrPasswordChangeRequired) && !errors.As(err, &stepUp)) {
+	if s.signInAttempts == nil || (err != nil && !errors.Is(err, ErrPasswordChangeRequired) && !errors.Is(err, ErrSecondFactorUnsupported) && !errors.As(err, &stepUp)) {
 		return
 	}
 	s.signInAttempts.Reset(context.WithoutCancel(ctx), signInAttemptKey(name))

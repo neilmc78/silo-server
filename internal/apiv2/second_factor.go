@@ -22,8 +22,8 @@ type SecondFactorService interface {
 	BeginTOTP(ctx context.Context, userID int) (*auth.TOTPSetup, error)
 	ConfirmTOTP(ctx context.Context, userID int, code, password string) ([]string, error)
 	DisableTOTP(ctx context.Context, userID int, password string) error
-	BeginPasskeyRegistration(ctx context.Context, userID int) (string, []byte, error)
-	FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name, password string, response []byte) ([]string, error)
+	BeginPasskeyRegistration(ctx context.Context, userID int, password string) (string, []byte, error)
+	FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name string, response []byte) ([]string, error)
 	RemovePasskey(ctx context.Context, userID int, id int64, password string) error
 	RegenerateRecoveryCodes(ctx context.Context, userID int, password string) ([]string, error)
 	ResetSecondFactors(ctx context.Context, userID int) error
@@ -121,10 +121,9 @@ type SecondFactorPasswordInput struct {
 // PasskeyRegisterInput stores the credential the browser created.
 type PasskeyRegisterInput struct {
 	Body struct {
-		ChallengeID     string         `json:"challenge_id" minLength:"1" maxLength:"128" doc:"The challenge from createAccountPasskeyOptions" example:"MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43UOV3HO6DZPI"`
-		Name            string         `json:"name,omitempty" maxLength:"64" doc:"A label for the passkey" example:"iPhone"`
-		Credential      map[string]any `json:"credential" doc:"The PublicKeyCredential from navigator.credentials.create, JSON-encoded"`
-		CurrentPassword string         `json:"current_password" minLength:"1" maxLength:"1024" doc:"The account password; turning a method on needs it, as removing one does" example:"correct horse battery staple"`
+		ChallengeID string         `json:"challenge_id" minLength:"1" maxLength:"128" doc:"The challenge from createAccountPasskeyOptions" example:"MFRGGZDFMZTWQ2LKNNWG23TPOBYXE43UOV3HO6DZPI"`
+		Name        string         `json:"name,omitempty" maxLength:"64" doc:"A label for the passkey" example:"iPhone"`
+		Credential  map[string]any `json:"credential" doc:"The PublicKeyCredential from navigator.credentials.create, JSON-encoded"`
 	}
 }
 
@@ -139,7 +138,7 @@ type PasskeyRemoveInput struct {
 func registerSecondFactor(reg *Registry) {
 	complete := humaOp(http.MethodPost, Prefix+"/auth/login/second-factor", "completeSecondFactorLogin", "auth",
 		"Finish a password sign-in that asked for a second step and open the login session.")
-	complete.Description = "When login answers 401 second_factor_required, its Silo-Second-Factor-Challenge header names the waiting sign-in and Silo-Second-Factor-Methods lists what the account can use (totp, passkey, recovery). Send exactly one of code, recovery_code or passkey with that challenge. A challenge lasts five minutes, opens one session, and is spent by five wrong answers. Each attempt, and each passkey-options request, spends one of the account's second-step budget, which is separate from the password step's; over budget is 429 rate_limited with Retry-After. A wrong answer is 401 second_factor_invalid. An unknown, used or expired challenge is 401 invalid_token, and so is a challenge whose account changed its password or can no longer sign in with it (the challenge is spent); a disabled account is 403. The client signs in again after an invalid_token."
+	complete.Description = "When login answers 401 second_factor_required, its Silo-Second-Factor-Challenge header names the waiting sign-in and Silo-Second-Factor-Methods lists what the account can use (totp, passkey, recovery). Send exactly one of code, recovery_code or passkey with that challenge. A challenge lasts five minutes, opens one session, and is spent by five wrong answers. Each answer spends one of the account's second-step budget, which is separate from the password step's; over budget is 429 rate_limited with Retry-After. Asking for passkey options spends none. A wrong answer is 401 second_factor_invalid. An unknown, used or expired challenge is 401 invalid_token, and so is a challenge whose account changed its password or can no longer sign in with it (the challenge is spent); a disabled account is 403. The client signs in again after an invalid_token."
 	complete.Errors = []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusTooManyRequests}
 	Register(reg, Operation{
 		Operation:   complete,
@@ -159,7 +158,7 @@ func registerSecondFactor(reg *Registry) {
 
 	account := func(method, path, id, summary string) Operation {
 		op := humaOp(method, Prefix+"/account/second-factors"+path, id, "account", summary)
-		op.Errors = []int{http.StatusForbidden, http.StatusConflict}
+		op.Errors = []int{http.StatusForbidden, http.StatusNotFound, http.StatusConflict}
 		return Operation{
 			Operation:   op,
 			RetrySafety: RetrySafetyNonRetryable,
@@ -215,6 +214,17 @@ func secondFactorProblem(err error) *Problem {
 			WithErrors(ProblemError{Location: locationBody + ".current_password", Code: codeInvalid, Detail: "The current password is wrong."})
 	}
 	return loginProblem(err)
+}
+
+// enrollmentProblem renders a refused code or passkey while turning a method
+// on as a validation problem at member: the caller is signed in, so a 401
+// would read as an expired session.
+func enrollmentProblem(err error, member string) *Problem {
+	if errors.Is(err, auth.ErrSecondFactorInvalid) {
+		return NewProblem(TypeValidationFailed, "The request did not pass validation; see errors.").
+			WithErrors(ProblemError{Location: locationBody + "." + member, Code: codeInvalid, Detail: "The code or passkey was not accepted."})
+	}
+	return secondFactorProblem(err)
 }
 
 func capitalize(s string) string {
@@ -360,7 +370,7 @@ func (reg *Registry) confirmAccountTOTP(ctx context.Context, in *TOTPConfirmInpu
 	}
 	codes, err := svc.ConfirmTOTP(ctx, userID, in.Body.Code, in.Body.CurrentPassword)
 	if err != nil {
-		return nil, secondFactorProblem(err)
+		return nil, enrollmentProblem(err, "code")
 	}
 	return recoveryCodesOutput(codes), nil
 }
@@ -376,12 +386,12 @@ func (reg *Registry) removeAccountTOTP(ctx context.Context, in *SecondFactorPass
 	return nil, nil
 }
 
-func (reg *Registry) createAccountPasskeyOptions(ctx context.Context, _ *struct{}) (*PasskeyOptionsOutput, error) {
+func (reg *Registry) createAccountPasskeyOptions(ctx context.Context, in *SecondFactorPasswordInput) (*PasskeyOptionsOutput, error) {
 	svc, userID, p := reg.secondFactorAccount(ctx)
 	if p != nil {
 		return nil, p
 	}
-	id, raw, err := svc.BeginPasskeyRegistration(ctx, userID)
+	id, raw, err := svc.BeginPasskeyRegistration(ctx, userID, in.Body.CurrentPassword)
 	if err != nil {
 		return nil, secondFactorProblem(err)
 	}
@@ -397,9 +407,9 @@ func (reg *Registry) createAccountPasskey(ctx context.Context, in *PasskeyRegist
 	if err != nil {
 		return nil, NewProblem(TypeSecondFactorInvalid, "The passkey response could not be read.")
 	}
-	codes, err := svc.FinishPasskeyRegistration(ctx, userID, in.Body.ChallengeID, in.Body.Name, in.Body.CurrentPassword, raw)
+	codes, err := svc.FinishPasskeyRegistration(ctx, userID, in.Body.ChallengeID, in.Body.Name, raw)
 	if err != nil {
-		return nil, secondFactorProblem(err)
+		return nil, enrollmentProblem(err, "credential")
 	}
 	return recoveryCodesOutput(codes), nil
 }
