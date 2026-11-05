@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	"github.com/Silo-Server/silo-server/internal/auth"
 )
@@ -19,7 +21,7 @@ type SecondFactorInput struct {
 func (h *AuthHandler) CompleteSecondFactor(ctx context.Context, in SecondFactorInput) (TokenPairView, error) {
 	pair, user, err := h.service.CompleteSecondFactor(ctx, in.ChallengeID, in.Proof, in.DeviceName, in.IP)
 	if err != nil {
-		return TokenPairView{}, err
+		return TokenPairView{}, secondStepError(err)
 	}
 	return TokenPairView{
 		AccessToken:  pair.AccessToken,
@@ -31,7 +33,35 @@ func (h *AuthHandler) CompleteSecondFactor(ctx context.Context, in SecondFactorI
 
 // PasskeySignInOptions returns the WebAuthn options for a waiting sign-in.
 func (h *AuthHandler) PasskeySignInOptions(ctx context.Context, challengeID string) ([]byte, error) {
-	return h.service.PasskeySignInOptions(ctx, challengeID)
+	options, err := h.service.PasskeySignInOptions(ctx, challengeID)
+	if err != nil {
+		return nil, secondStepError(err)
+	}
+	return options, nil
+}
+
+// secondStepError renders the account and budget refusals of the second
+// sign-in step as Login renders them. The step's own refusals (a wrong
+// answer, a spent challenge) pass through for the caller to map.
+func secondStepError(err error) error {
+	if throttled, ok := errors.AsType[*auth.SignInThrottledError](err); ok {
+		return signInThrottledError(throttled)
+	}
+	switch {
+	case errors.Is(err, auth.ErrInvalidCredentials):
+		return apiError(http.StatusUnauthorized, "invalid_credentials", "The password changed or the account can no longer sign in this way; sign in again")
+	case errors.Is(err, auth.ErrUserDisabled):
+		return apiError(http.StatusForbidden, "user_disabled", "User account is disabled")
+	case errors.Is(err, auth.ErrPasswordChangeRequired):
+		return apiError(http.StatusUnauthorized, "invalid_credentials", "Sign in again")
+	}
+	if apiErr := busyError(err); apiErr != nil {
+		return apiErr
+	}
+	if apiErr := externalSignInError(err); apiErr != nil {
+		return apiErr
+	}
+	return err
 }
 
 // SecondFactorStatus reports the account's second factors.
@@ -45,8 +75,8 @@ func (h *AuthHandler) BeginTOTP(ctx context.Context, userID int) (*auth.TOTPSetu
 }
 
 // ConfirmTOTP turns the authenticator on.
-func (h *AuthHandler) ConfirmTOTP(ctx context.Context, userID int, code string) ([]string, error) {
-	return h.service.ConfirmTOTP(ctx, userID, code)
+func (h *AuthHandler) ConfirmTOTP(ctx context.Context, userID int, code, password string) ([]string, error) {
+	return h.service.ConfirmTOTP(ctx, userID, code, password)
 }
 
 // DisableTOTP removes the authenticator.
@@ -60,8 +90,8 @@ func (h *AuthHandler) BeginPasskeyRegistration(ctx context.Context, userID int) 
 }
 
 // FinishPasskeyRegistration stores a new passkey.
-func (h *AuthHandler) FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name string, response []byte) ([]string, error) {
-	return h.service.FinishPasskeyRegistration(ctx, userID, challengeID, name, response)
+func (h *AuthHandler) FinishPasskeyRegistration(ctx context.Context, userID int, challengeID, name, password string, response []byte) ([]string, error) {
+	return h.service.FinishPasskeyRegistration(ctx, userID, challengeID, name, password, response)
 }
 
 // RemovePasskey removes a passkey.

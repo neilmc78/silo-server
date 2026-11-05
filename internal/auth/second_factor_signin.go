@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -61,19 +63,62 @@ func lockLocalSignIn(ctx context.Context, tx pgx.Tx, userID int, refusePasswordC
 // none.
 func (s *Service) SecondFactors() *SecondFactors { return s.secondFactors }
 
+// secondStepKey is the attempt budget of an account's second step. It is
+// separate from the name budgets of the password step, so a correct
+// password, which clears its name's budget, never refills the guesses at
+// the second factor, and signing in by email or by username shares one
+// budget.
+func secondStepKey(userID int) string {
+	return "signin_second_step:" + strconv.Itoa(userID)
+}
+
+func (s *Service) reserveSecondStep(ctx context.Context, userID int) error {
+	if s.signInAttempts == nil {
+		return nil
+	}
+	if retryAfter, ok := s.signInAttempts.Reserve(ctx, secondStepKey(userID)); !ok {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		return &SignInThrottledError{RetryAfter: retryAfter}
+	}
+	return nil
+}
+
+func (s *Service) clearSecondStep(ctx context.Context, userID int) {
+	if s.signInAttempts != nil {
+		s.signInAttempts.Reset(context.WithoutCancel(ctx), secondStepKey(userID))
+	}
+}
+
 // PasskeySignInOptions returns the WebAuthn options for a sign-in waiting on
-// its second step.
+// its second step. Each call spends one attempt of the account's
+// second-step budget, as an answer does.
 func (s *Service) PasskeySignInOptions(ctx context.Context, challengeID string) ([]byte, error) {
-	if s.secondFactors == nil {
+	f := s.secondFactors
+	if f == nil {
 		return nil, ErrSecondFactorsUnavailable
 	}
-	return s.secondFactors.PasskeySignInOptions(ctx, challengeID)
+	ch, err := f.readChallenge(ctx, s.users.pool, challengeID, challengeSignIn, false)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.reserveSecondStep(ctx, ch.userID); err != nil {
+		return nil, err
+	}
+	return f.PasskeySignInOptions(ctx, challengeID)
 }
 
 // CompleteSecondFactor finishes a password sign-in that answered
-// SecondFactorRequiredError. Each attempt spends the account's sign-in
-// budget like a password attempt; five wrong answers spend the challenge.
-func (s *Service) CompleteSecondFactor(ctx context.Context, challengeID string, proof SecondFactorProof, deviceName, ip string) (pair *TokenPair, user *models.User, err error) {
+// SecondFactorRequiredError.
+//
+// Each attempt spends one of the account's second-step budget. The account
+// is re-checked before the answer, so a refused account (disabled, password
+// changed, local sign-in off) spends the challenge without revealing whether
+// the answer was right. A wrong answer is counted in the same transaction
+// that locked the challenge, so concurrent answers cannot each see fewer
+// than five failures.
+func (s *Service) CompleteSecondFactor(ctx context.Context, challengeID string, proof SecondFactorProof, deviceName, ip string) (*TokenPair, *models.User, error) {
 	f := s.secondFactors
 	if f == nil {
 		return nil, nil, ErrSecondFactorsUnavailable
@@ -92,20 +137,29 @@ func (s *Service) CompleteSecondFactor(ctx context.Context, challengeID string, 
 	if err != nil {
 		return nil, nil, err
 	}
-	account, err := s.users.GetByID(ctx, ch.userID)
-	if err != nil {
-		return nil, nil, ErrSecondFactorChallenge
-	}
-	budget := account.Username
-	if err = s.reserveSignIn(ctx, budget); err != nil {
+	if err := s.reserveSecondStep(ctx, ch.userID); err != nil {
 		return nil, nil, err
 	}
-	defer func() { s.finishSignIn(ctx, budget, err) }()
 
 	sessionID := uuid.New().String()
+	var user *models.User
+	// refusal is returned after the transaction commits, so what it wrote
+	// (a spent challenge, a counted failure) stays written.
+	var refusal error
 	err = pgx.BeginFunc(ctx, s.users.pool, func(tx pgx.Tx) error {
 		ch, err := f.readChallenge(ctx, tx, challengeID, challengeSignIn, true)
 		if err != nil {
+			return err
+		}
+		current, err := lockLocalSignIn(ctx, tx, ch.userID, false, func(current *models.User) bool {
+			return passwordMark(current.PasswordHash) == ch.mark
+		})
+		if err != nil {
+			if !isLocalSignInRefusal(err) {
+				return err
+			}
+			refusal = err
+			_, err = tx.Exec(ctx, `UPDATE auth_challenges SET used_at = $2 WHERE id = $1`, challengeID, f.now())
 			return err
 		}
 		ok, err := f.check(ctx, tx, ch, proof)
@@ -113,15 +167,11 @@ func (s *Service) CompleteSecondFactor(ctx context.Context, challengeID string, 
 			return err
 		}
 		if !ok {
-			return ErrSecondFactorInvalid
-		}
-		if _, err := tx.Exec(ctx, `UPDATE auth_challenges SET used_at = $2 WHERE id = $1`, challengeID, f.now()); err != nil {
+			refusal = ErrSecondFactorInvalid
+			_, err = tx.Exec(ctx, `UPDATE auth_challenges SET failures = failures + 1 WHERE id = $1`, challengeID)
 			return err
 		}
-		current, err := lockLocalSignIn(ctx, tx, ch.userID, false, func(current *models.User) bool {
-			return passwordMark(current.PasswordHash) == ch.mark
-		})
-		if err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE auth_challenges SET used_at = $2 WHERE id = $1`, challengeID, f.now()); err != nil {
 			return err
 		}
 		if err := s.sessions.createWithQuerier(ctx, tx, models.AuthSession{
@@ -136,15 +186,17 @@ func (s *Service) CompleteSecondFactor(ctx context.Context, challengeID string, 
 		user = current
 		return nil
 	})
-	if errors.Is(err, ErrSecondFactorInvalid) {
-		// Counted outside the rolled-back transaction.
-		_, _ = s.users.pool.Exec(context.WithoutCancel(ctx),
-			`UPDATE auth_challenges SET failures = failures + 1 WHERE id = $1`, challengeID)
-	}
 	if err != nil {
 		return nil, nil, err
 	}
-	pair, err = s.generateTokenPair(Claims{
+	if refusal != nil {
+		if errors.Is(refusal, ErrSecondFactorInvalid) {
+			slog.InfoContext(ctx, "second sign-in step refused", "component", "auth", "user_id", ch.userID, "ip", ip)
+		}
+		return nil, nil, refusal
+	}
+	s.clearSecondStep(ctx, user.ID)
+	pair, err := s.generateTokenPair(Claims{
 		UserID:                 user.ID,
 		Role:                   user.Role,
 		SessionID:              sessionID,
@@ -154,4 +206,15 @@ func (s *Service) CompleteSecondFactor(ctx context.Context, challengeID string, 
 		return nil, nil, err
 	}
 	return pair, user, nil
+}
+
+// isLocalSignInRefusal reports whether err is lockLocalSignIn turning the account away,
+// as opposed to the database failing.
+func isLocalSignInRefusal(err error) bool {
+	for _, refused := range []error{ErrInvalidCredentials, ErrUserDisabled, ErrLocalLoginDisabled, ErrNotPermitted, ErrPasswordChangeRequired} {
+		if errors.Is(err, refused) {
+			return true
+		}
+	}
+	return false
 }
