@@ -268,9 +268,15 @@ export function AccountTwoStepSection() {
   if (status.isError || !status.data?.available) return null;
   const st = status.data;
 
+  // A code is six digits; anything with letters or much longer is the setup
+  // key typed in the wrong place.
+  const codeDigits = code.replace(/\s/g, "");
+  const codeLooksLikeKey = /[a-z]/i.test(codeDigits) || codeDigits.length > 8;
+
   function handleConfirm(e: FormEvent) {
     e.preventDefault();
-    if (code.trim()) confirm.mutate(code.trim());
+    if (codeLooksLikeKey || !codeDigits) return;
+    confirm.mutate(codeDigits);
   }
 
   return (
@@ -317,29 +323,72 @@ export function AccountTwoStepSection() {
               </div>
             )
           ) : setup ? (
-            <div className="space-y-3">
-              <p className="text-muted-foreground text-sm">
-                Scan this with Google Authenticator, 1Password, Authy or similar, then enter the
-                code it shows.
-              </p>
-              <div className="inline-block rounded bg-white p-3">
-                <QRCode value={setup.otpauth_uri} size={168} />
-              </div>
-              <p className="text-muted-foreground text-xs">
-                Can't scan? Enter this key: <code className="font-mono">{setup.secret}</code>
-              </p>
+            <div className="space-y-4">
+              <ol className="max-w-xl list-decimal space-y-4 pl-5 text-sm">
+                <li className="space-y-2">
+                  <p>
+                    Add Silo to an authenticator app, such as Google Authenticator, Microsoft
+                    Authenticator, 1Password or Authy.
+                  </p>
+                  <Button asChild variant="outline" size="sm">
+                    <a href={setup.otpauth_uri}>Open in authenticator app</a>
+                  </Button>
+                  <p className="text-muted-foreground text-xs">
+                    On this phone, tap the button. On another device, scan this code with your
+                    phone:
+                  </p>
+                  <div className="inline-block rounded bg-white p-3">
+                    <QRCode value={setup.otpauth_uri} size={168} />
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    Or add it by hand: choose "Enter a setup key" in the app and type this key. It
+                    goes in the app, not in Silo.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <code className="bg-muted rounded px-2 py-1 font-mono text-sm tracking-wider">
+                      {setup.secret.match(/.{1,4}/g)?.join(" ")}
+                    </code>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        void navigator.clipboard
+                          ?.writeText(setup.secret)
+                          .then(() => toast.success("Setup key copied"));
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </li>
+                <li>
+                  <p>Enter the 6-digit code the app now shows for Silo, and your password.</p>
+                </li>
+              </ol>
               <form className="flex max-w-md flex-wrap items-end gap-2" onSubmit={handleConfirm}>
                 <div className="min-w-40 flex-1 space-y-1">
-                  <Label htmlFor="two-step-totp-code">Code</Label>
+                  <Label htmlFor="two-step-totp-code">6-digit code from the app</Label>
                   <Input
                     id="two-step-totp-code"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     inputMode="numeric"
                     autoComplete="one-time-code"
-                    maxLength={8}
+                    placeholder="123456"
+                    aria-describedby={codeLooksLikeKey ? "two-step-totp-code-hint" : undefined}
                     required
                   />
+                  {codeLooksLikeKey ? (
+                    <p
+                      id="two-step-totp-code-hint"
+                      className="text-destructive text-xs"
+                      role="alert"
+                    >
+                      That's the setup key. Put it in your authenticator app, then enter the 6-digit
+                      code the app shows.
+                    </p>
+                  ) : null}
                 </div>
                 <div className="min-w-40 flex-1 space-y-1">
                   <Label htmlFor="two-step-totp-password">Current password</Label>
