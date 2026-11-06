@@ -16,7 +16,17 @@ const statusKey = ["account", "second-factors"] as const;
 function errorText(err: unknown, fallback: string): string {
   if (err instanceof V2ProblemError) {
     if (err.problemType === "second_factor_invalid") return "That code wasn't accepted. Try again.";
-    if (err.problemType === "validation_failed") return "The current password is wrong.";
+    if (err.problemType === "validation_failed") {
+      // Name the member the server refused: the password, or the code or
+      // passkey being turned on.
+      const where = err.problem.errors?.map((e) => e.location) ?? [];
+      if (where.includes("body.current_password")) return "The current password is wrong.";
+      if (where.includes("body.code")) {
+        return "That code wasn't accepted. Check your phone's time is set automatically, then try the newest code.";
+      }
+      if (where.includes("body.credential")) return "The passkey wasn't accepted. Try again.";
+      return err.message || fallback;
+    }
     return err.message || fallback;
   }
   if (err instanceof DOMException && err.name === "NotAllowedError") {
