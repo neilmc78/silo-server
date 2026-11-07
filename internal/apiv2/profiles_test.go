@@ -196,6 +196,13 @@ func TestListProfiles(t *testing.T) {
 	if rec.Body.String() != want {
 		t.Fatalf("body = %s", rec.Body.String())
 	}
+	// An unlimited household has no max_profiles (above); a limited one
+	// reports it, so clients can hide actions it cannot use.
+	profiles.maxProfiles = 1
+	rec = do(t, h, http.MethodGet, "/api/v2/profiles", "", bearer(memberToken))
+	if want := strings.Replace(want, `"require_advisory_age_supported":true}`, `"require_advisory_age_supported":true,"max_profiles":1}`, 1); rec.Code != 200 || rec.Body.String() != want {
+		t.Fatalf("limited household: %d %s", rec.Code, rec.Body.String())
+	}
 	// A declared profile is still judged; the offset parameter is unknown.
 	requireProblem(t, do(t, h, http.MethodGet, "/api/v2/profiles", "", with(bearer(memberToken), "X-Profile-Id", "p-other")), TypeNotFound)
 	requireProblem(t, do(t, h, http.MethodGet, "/api/v2/profiles?offset=1", "", bearer(memberToken)), TypeValidationFailed)

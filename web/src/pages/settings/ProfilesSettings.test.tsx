@@ -16,7 +16,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/queries/profiles", () => ({
-  useProfiles: (...args: unknown[]) => mocks.useProfiles(...args),
+  // Room for another profile unless a test says otherwise.
+  useProfiles: (...args: unknown[]) => ({ canAddProfile: true, ...mocks.useProfiles(...args) }),
   useDeleteProfile: () => ({
     isPending: false,
     mutate: (...args: unknown[]) => mocks.deleteMutate(...args),

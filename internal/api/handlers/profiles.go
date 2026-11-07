@@ -198,6 +198,9 @@ type ProfileView struct {
 type ProfileListView struct {
 	Profiles            []ProfileView `json:"profiles"`
 	AvatarUploadEnabled bool          `json:"avatar_upload_enabled"`
+	// MaxProfiles is the account's household limit, 0 when unlimited or
+	// unknown. v2 listProfiles reports it; v1 is frozen and does not.
+	MaxProfiles int `json:"-"`
 }
 
 type verifyPINResponse struct {
@@ -310,9 +313,17 @@ func (h *ProfileHandler) ListProfiles(ctx context.Context, userID int) (ProfileL
 	if err != nil {
 		return ProfileListView{}, apiError(http.StatusInternalServerError, "internal_error", "Failed to list profiles")
 	}
+	// The limit only decides which actions clients offer, so a failure to
+	// read it leaves it unknown rather than failing the list.
+	limit, err := h.accountProfileLimit(ctx, userID)
+	if err != nil {
+		slog.WarnContext(ctx, "profiles: could not read the account's profile limit", "component", "profiles", "user_id", userID, "err", err)
+		limit = 0
+	}
 	return ProfileListView{
 		Profiles:            h.toProfileResponses(ctx, store, profiles),
 		AvatarUploadEnabled: h.AvatarStore != nil,
+		MaxProfiles:         limit,
 	}, nil
 }
 
@@ -503,24 +514,15 @@ func (h *ProfileHandler) CreateProfile(ctx context.Context, cmd ProfileCreateCom
 	// early check answers a full household before the name check, as it always
 	// has; the guarantee under concurrency is the re-count inside the creating
 	// transaction (createProfileWithSettingsSync).
-	profileLimit := 0
-	if h.UserRepo != nil {
-		user, err := h.UserRepo.GetByID(ctx, userID)
-		if err != nil {
+	profileLimit, err := h.accountProfileLimit(ctx, userID)
+	if err != nil {
+		if errors.Is(err, errProfileLimitUser) {
 			return none, apiError(http.StatusInternalServerError, "internal_error", "Failed to load user")
 		}
-		if user != nil {
-			effective, err := access.EffectivePolicyForUser(ctx, user, h.AccessGroups)
-			if err != nil {
-				return none, apiError(http.StatusInternalServerError, "internal_error", "Failed to load the account's profile limit")
-			}
-			if effective.MaxProfiles >= 1 {
-				profileLimit = effective.MaxProfiles
-			}
-			if profileLimit >= 1 && len(existingProfiles) >= profileLimit {
-				return none, profileLimitReached(profileLimit)
-			}
-		}
+		return none, apiError(http.StatusInternalServerError, "internal_error", "Failed to load the account's profile limit")
+	}
+	if profileLimit >= 1 && len(existingProfiles) >= profileLimit {
+		return none, profileLimitReached(profileLimit)
 	}
 
 	if profileNameConflicts(existingProfiles, req.Name, "") {
@@ -1310,4 +1312,32 @@ func (h *ProfileHandler) ListHouseholdSessions(ctx context.Context, q HouseholdS
 		return nil, apiError(http.StatusInternalServerError, "internal_error", "Failed to list playback sessions")
 	}
 	return sessions, nil
+}
+
+// errProfileLimitUser reports that the account behind a profile limit could
+// not be loaded.
+var errProfileLimitUser = errors.New("profiles: load account for profile limit")
+
+// accountProfileLimit is the account's household profile limit from its
+// effective access policy, 0 when unlimited. Listing reports it and creation
+// enforces it, so both read it here.
+func (h *ProfileHandler) accountProfileLimit(ctx context.Context, userID int) (int, error) {
+	if h.UserRepo == nil {
+		return 0, nil
+	}
+	user, err := h.UserRepo.GetByID(ctx, userID)
+	if err != nil {
+		return 0, fmt.Errorf("%w: %w", errProfileLimitUser, err)
+	}
+	if user == nil {
+		return 0, nil
+	}
+	effective, err := access.EffectivePolicyForUser(ctx, user, h.AccessGroups)
+	if err != nil {
+		return 0, err
+	}
+	if effective.MaxProfiles >= 1 {
+		return effective.MaxProfiles, nil
+	}
+	return 0, nil
 }

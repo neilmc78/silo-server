@@ -37,6 +37,8 @@ export type ProfileVerification = V2Result<"POST /api/v2/profiles/{id}/verify-pi
 export interface ProfileList {
   profiles: Profile[];
   avatar_upload_enabled: boolean;
+  /** The account's household profile limit; absent when unlimited or on an older server. */
+  max_profiles?: number;
   /**
    * Whether the server accepts and enforces `max_advisory_age`. The profile
    * operations reject unknown members, so the editor neither shows the control
@@ -119,7 +121,17 @@ export async function listProfiles(): Promise<ProfileList> {
     max_advisory_age_supported: list.max_advisory_age_supported === true,
     // Absent on a server that predates the require-advisory-age option.
     require_advisory_age_supported: list.require_advisory_age_supported === true,
+    max_profiles: list.max_profiles,
   };
+}
+
+/**
+ * Whether the account may add another profile: below its limit, or with no
+ * limit (absent on an older server, which then answers a full household with
+ * 409 profile_limit_reached as before).
+ */
+export function canAddProfile(profileCount: number, maxProfiles: number | undefined): boolean {
+  return maxProfiles === undefined || profileCount < maxProfiles;
 }
 
 /**
@@ -180,6 +192,8 @@ export function useProfiles(options?: { enabled?: boolean }) {
     avatarUploadEnabled: query.data?.avatar_upload_enabled ?? false,
     maxAdvisoryAgeSupported: query.data?.max_advisory_age_supported ?? false,
     requireAdvisoryAgeSupported: query.data?.require_advisory_age_supported ?? false,
+    maxProfiles: query.data?.max_profiles,
+    canAddProfile: canAddProfile(query.data?.profiles.length ?? 0, query.data?.max_profiles),
   };
 }
 
