@@ -137,6 +137,9 @@ type ProfileCollection struct {
 	// require_advisory_age, which arrived after max_advisory_age: a server can
 	// report the first and not the second.
 	RequireAdvisoryAgeSupported bool `json:"require_advisory_age_supported" doc:"Whether profiles accept require_advisory_age and the server enforces it" example:"true"`
+	// MaxProfiles lets a client hide profile actions the account cannot use:
+	// createProfile answers 409 profile_limit_reached at the limit.
+	MaxProfiles *int `json:"max_profiles,omitempty" minimum:"1" doc:"The account's household profile limit; absent when unlimited" example:"5"`
 }
 
 // ProfileCollectionOutput is the listProfiles response.
@@ -683,6 +686,7 @@ func (reg *Registry) listProfiles(ctx context.Context, _ *struct{}) (*ProfileCol
 		AvatarUploadEnabled:         view.AvatarUploadEnabled,
 		MaxAdvisoryAgeSupported:     true,
 		RequireAdvisoryAgeSupported: true,
+		MaxProfiles:                 maxProfilesOf(view.MaxProfiles),
 	}}, nil
 }
 
@@ -1029,4 +1033,12 @@ func profileOf(v handlers.ProfileView) (Profile, *Problem) {
 		CreatedAt:                  created,
 		UpdatedAt:                  updated,
 	}, nil
+}
+
+// maxProfilesOf reports a household limit, or none when it is unlimited.
+func maxProfilesOf(limit int) *int {
+	if limit < 1 {
+		return nil
+	}
+	return &limit
 }

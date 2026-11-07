@@ -10,7 +10,7 @@ import {
   setProfileId,
   setProfileToken,
 } from "@/api/client";
-import { createProfile, uploadProfileAvatar } from "./profiles";
+import { createProfile, uploadProfileAvatar, canAddProfile } from "./profiles";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
@@ -71,5 +71,16 @@ describe("profile queries on the v2 contract", () => {
     expect(request.init.headers["Content-Type"]).toBeUndefined();
     expect(profile.avatar_source).toBe("upload");
     expect(profile.avatar_url).toBe(uploadProfileAvatarOk.avatar_url);
+  });
+});
+
+describe("canAddProfile", () => {
+  it.each([
+    ["no limit", 4, undefined, true],
+    ["below the limit", 1, 2, true],
+    ["at the limit", 1, 1, false],
+    ["over the limit after it was lowered", 3, 2, false],
+  ] as const)("%s", (_name, count, max, want) => {
+    expect(canAddProfile(count, max)).toBe(want);
   });
 });

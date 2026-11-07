@@ -45,6 +45,10 @@ vi.mock("@/hooks/useCurrentProfile", () => ({
   }),
 }));
 
+vi.mock("@/hooks/queries/profiles", () => ({
+  useProfiles: () => ({ isSuccess: false, data: [], canAddProfile: true }),
+}));
+
 vi.mock("@/hooks/queries/libraries", () => ({
   useUserLibraries: () => ({
     data: mockLibraries,
