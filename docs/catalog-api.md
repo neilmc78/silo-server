@@ -1100,6 +1100,13 @@ book libraries, never carry an advisory age, so the limit never hides them.
 
 Frozen v1 responses do not expose these fields.
 
+`listProfiles` also reports `max_profiles`, the account's household profile
+limit from its access policy, and omits it when the account has no limit.
+`createProfile` answers `409 profile_limit_reached` once the household has that
+many profiles, so a client hides its add-profile actions at the limit, and its
+switch-profile action when the only profile cannot be joined by another. The
+frozen v1 `GET /profiles` does not carry it.
+
 ## Ratings on title pages
 
 Every client shows a title's external ratings the same way: the v2 item detail

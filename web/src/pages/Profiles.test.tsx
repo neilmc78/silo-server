@@ -42,7 +42,8 @@ vi.mock("react-router", async () => {
 });
 
 vi.mock("@/hooks/queries/profiles", () => ({
-  useProfiles: (...args: unknown[]) => mocks.useProfiles(...args),
+  // Room for another profile unless a test says otherwise.
+  useProfiles: (...args: unknown[]) => ({ canAddProfile: true, ...mocks.useProfiles(...args) }),
 }));
 
 vi.mock("@/hooks/queries/libraries", () => ({

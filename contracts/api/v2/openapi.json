@@ -46646,6 +46646,15 @@
             ],
             "type": "boolean"
           },
+          "max_profiles": {
+            "description": "The account's household profile limit; absent when unlimited",
+            "examples": [
+              5
+            ],
+            "format": "int64",
+            "minimum": 1,
+            "type": "integer"
+          },
           "page": {
             "$ref": "#/components/schemas/PageInfo",
             "description": "Cursor state; absent for bounded unpaginated collections"

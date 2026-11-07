@@ -18,6 +18,7 @@ import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useIsActingAdmin } from "@/hooks/useIsActingAdmin";
 import { navigateToPluginRoute } from "@/lib/buildPluginHref";
 import { useUserLibraries } from "@/hooks/queries/libraries";
+import { useProfiles } from "@/hooks/queries/profiles";
 import { useUnreadNotificationCount } from "@/hooks/queries/notifications";
 import { useNotificationCapability } from "@/hooks/queries/notificationWebhooks";
 import { usePluginSettingsList } from "@/hooks/queries/pluginSettings";
@@ -198,6 +199,11 @@ export default function AppSidebar({ onNavigate, collapsed = false, swap }: AppS
   const params = useParams<{ libraryId: string }>();
   const { user, logout, clearProfile } = useAuth();
   const { profile } = useCurrentProfile();
+  // Switching needs another profile to switch to, or room to add one. Until
+  // the list loads, the item shows as it always has.
+  const household = useProfiles({ enabled: Boolean(profile) });
+  const canSwitchProfile =
+    !household.isSuccess || household.data.length > 1 || household.canAddProfile;
   const showAdminNav = useIsActingAdmin();
   const { data: libraries } = useUserLibraries();
   const { pins } = useSidebarPins();
@@ -1069,7 +1075,7 @@ export default function AppSidebar({ onNavigate, collapsed = false, swap }: AppS
               <DropdownMenuSeparator />
 
               <div className="flex flex-col gap-1 pt-0.5">
-                {profile && (
+                {profile && canSwitchProfile && (
                   <DropdownMenuItem
                     onClick={() => {
                       clearProfile();

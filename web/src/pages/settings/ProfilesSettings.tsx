@@ -46,6 +46,8 @@ export default function ProfilesSettings() {
     avatarUploadEnabled,
     maxAdvisoryAgeSupported,
     requireAdvisoryAgeSupported,
+    maxProfiles,
+    canAddProfile,
   } = useProfiles();
   const { data: libraries = [], isLoading: librariesLoading } = useAvailableUserLibraries();
   const { profile: activeProfile, selectProfile, verifyProfilePin } = useAuth();
@@ -89,10 +91,17 @@ export default function ProfilesSettings() {
         title="Profiles"
         subtitle="Manage profile names, PINs, and access rules."
         actions={
-          <Button onClick={openCreateDialog}>
-            <Plus className="h-4 w-4" />
-            New profile
-          </Button>
+          canAddProfile ? (
+            <Button onClick={openCreateDialog}>
+              <Plus className="h-4 w-4" />
+              New profile
+            </Button>
+          ) : (
+            <p className="text-muted-foreground max-w-xs text-sm">
+              This account can have {maxProfiles} {maxProfiles === 1 ? "profile" : "profiles"}. An
+              administrator can raise the limit.
+            </p>
+          )
         }
       />
 

@@ -31804,6 +31804,12 @@ export interface components {
        * @example true
        */
       max_advisory_age_supported: boolean;
+      /**
+       * Format: int64
+       * @description The account's household profile limit; absent when unlimited
+       * @example 5
+       */
+      max_profiles?: number;
       /** @description Cursor state; absent for bounded unpaginated collections */
       page?: components["schemas"]["PageInfo"];
       /**
