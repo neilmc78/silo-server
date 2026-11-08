@@ -101,6 +101,7 @@ import (
 	"github.com/Silo-Server/silo-server/internal/trickplay"
 	"github.com/Silo-Server/silo-server/internal/usercollections"
 	"github.com/Silo-Server/silo-server/internal/userstore"
+	"github.com/Silo-Server/silo-server/internal/userstore/pgstore"
 	"github.com/Silo-Server/silo-server/internal/watchlist"
 	"github.com/Silo-Server/silo-server/internal/watchstate"
 	"github.com/Silo-Server/silo-server/internal/watchtogether"
@@ -1700,6 +1701,9 @@ func newChiRouter(deps Dependencies) chi.Router {
 				watchtogether.NewProfileNameResolver(deps.UserStoreProvider),
 			)
 			watchTogetherService.SetPlaybackAttemptStore(playbackHandler.PlanStoreV3)
+			if settingValuesHandler != nil {
+				watchTogetherService.SetGuestControlPreferences(settingValuesHandler.WatchPartyGuestControlPreferences())
+			}
 			if err := watchTogetherService.SetClusterEventBus(deps.EventBus); err != nil {
 				slog.Warn("watch together cluster synchronization unavailable", "error", err)
 			}
@@ -1856,6 +1860,7 @@ func newChiRouter(deps Dependencies) chi.Router {
 			deps.MetadataService,
 		)
 		adminMatchHandler.EventBus = deps.EventBus
+		adminMatchHandler.Groups = scanner.NewScannedGroupRepository(deps.DB)
 	}
 
 	// Build admin split/merge handler for repairing wrong version groupings.
@@ -2195,8 +2200,10 @@ func newChiRouter(deps Dependencies) chi.Router {
 
 		libraryCollectionRepo := catalog.NewLibraryCollectionRepository(deps.DB)
 		var collectionSortCleaner *userstore.CollectionSortPreferenceCleaner
+		var collectionRowRenamer *userstore.CollectionRowRenamer
 		if userRepo != nil && deps.UserStoreProvider != nil {
 			collectionSortCleaner = userstore.NewCollectionSortPreferenceCleaner(userRepo, deps.UserStoreProvider)
+			collectionRowRenamer = userstore.NewCollectionRowRenamer(userRepo, deps.UserStoreProvider)
 		}
 		if collectionHandler != nil {
 			collectionHandler.LibraryCollections = libraryCollectionRepo
@@ -2262,6 +2269,7 @@ func newChiRouter(deps Dependencies) chi.Router {
 		libraryCollectionHandler.PersonalMemberCounts = personalMemberCounts
 		libraryCollectionHandler.EventsHub = deps.EventsHub
 		libraryCollectionHandler.SortPreferenceCleaner = collectionSortCleaner
+		libraryCollectionHandler.CollectionRowRenamer = collectionRowRenamer
 		if deps.FolderRepo != nil {
 			libraryCollectionHandler.FolderRepo = deps.FolderRepo
 		} else {
@@ -3179,6 +3187,15 @@ func newChiRouter(deps Dependencies) chi.Router {
 	if personalDataHandler != nil && itemsHandler != nil {
 		v2deps.PersonalLists = personalDataHandler
 		v2deps.NotInterested = personalDataHandler
+		// Allowances live in the shared tables, so they are kept only where
+		// the user store is PostgreSQL in the same database.
+		if viewerResolver != nil && deps.DB != nil {
+			if shared, ok := deps.UserStoreProvider.(interface{ StoresAccountsIn(*pgxpool.Pool) bool }); ok && shared.StoresAccountsIn(deps.DB) {
+				v2deps.TitleAllowances = handlers.NewTitleAllowanceHandler(personalDataHandler, viewerResolver, pgstore.NewTitleAllowances(deps.DB)).
+					WithSmartCollections(&catalog.QueryExecutor{Pool: deps.DB}).
+					WithCollectionOwners(collectionOwners)
+			}
+		}
 	}
 	if ratingsHandler != nil {
 		v2deps.Ratings = ratingsHandler
