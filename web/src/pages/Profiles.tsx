@@ -20,6 +20,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { listUserLibraries, useAvailableUserLibraries } from "@/hooks/queries/libraries";
 import { useProfiles } from "@/hooks/queries/profiles";
 import { sanitizeAuthRedirect } from "@/lib/authRedirect";
+import { canAddProfile } from "@/lib/profile-management";
 
 type ManagePurpose = "add" | "manage";
 /** What a PIN prompt on the picker unlocks. */
@@ -43,7 +44,7 @@ export default function Profiles() {
     avatarUploadEnabled,
     maxAdvisoryAgeSupported,
     requireAdvisoryAgeSupported,
-    canAddProfile,
+    maxProfiles,
   } = useProfiles();
   const { data: libraries = [], isLoading: librariesLoading } = useAvailableUserLibraries();
   const [editorOpen, setEditorOpen] = useState(false);
@@ -248,7 +249,7 @@ export default function Profiles() {
             </button>
           </div>
         ))}
-        {canAddProfile ? (
+        {canAddProfile(profiles.length, maxProfiles) ? (
           <button
             type="button"
             onClick={() => startManaging("add")}

@@ -2,8 +2,8 @@ import { type ReactNode } from "react";
 import { decodeThumbhash } from "@/lib/thumbhash";
 import { imageIdentity, useImageLoaded } from "@/hooks/useImageLoaded";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { HeroBackdropArtwork } from "@/components/HeroBackdropArtwork";
 import { useShowTitleArt } from "@/hooks/useTitleArt";
+import { HeroBackdropArtwork } from "@/components/HeroBackdropArtwork";
 
 import "./detailLayout.css";
 import DetailOverview from "./components/DetailOverview";

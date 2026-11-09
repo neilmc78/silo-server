@@ -221,8 +221,7 @@ type fakeProfiles struct {
 	sessions         []handlers.PlaybackSessionView
 	err              error
 	avatarStore      bool
-	// maxProfiles is the account's household limit ListProfiles reports.
-	maxProfiles int
+	maxProfiles      int
 	// noAvatarStore makes UploadAvatar answer the v1 503 (no upload store).
 	noAvatarStore bool
 	// lockedPrimary, when set, is the PIN-locked primary profile the fake
