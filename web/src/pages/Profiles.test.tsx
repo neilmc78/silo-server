@@ -42,8 +42,7 @@ vi.mock("react-router", async () => {
 });
 
 vi.mock("@/hooks/queries/profiles", () => ({
-  // Room for another profile unless a test says otherwise.
-  useProfiles: (...args: unknown[]) => ({ canAddProfile: true, ...mocks.useProfiles(...args) }),
+  useProfiles: (...args: unknown[]) => mocks.useProfiles(...args),
 }));
 
 vi.mock("@/hooks/queries/libraries", () => ({
@@ -189,6 +188,7 @@ describe("Profiles", () => {
     mocks.useProfiles.mockReturnValue({
       data: [makeProfile(), makeProfile({ id: "profile-2", name: "Guest" })],
       isLoading: false,
+      maxProfiles: null,
     });
     mocks.useAvailableUserLibraries.mockReturnValue({
       data: libraries,
@@ -218,6 +218,7 @@ describe("Profiles", () => {
     mocks.useProfiles.mockReturnValue({
       data: [],
       isLoading: false,
+      maxProfiles: null,
     });
 
     await render(<Profiles />);
@@ -235,6 +236,7 @@ describe("Profiles", () => {
     mocks.useProfiles.mockReturnValue({
       data: [],
       isLoading: false,
+      maxProfiles: null,
     });
     mocks.editorPin = "1234";
 
@@ -260,6 +262,7 @@ describe("Profiles", () => {
     mocks.useProfiles.mockReturnValue({
       data: [makeProfile(), lockedProfile],
       isLoading: false,
+      maxProfiles: null,
     });
 
     await render(<Profiles />);
@@ -303,7 +306,11 @@ describe("Profiles", () => {
         is_primary: true,
         has_pin: hasPin,
       });
-      mocks.useProfiles.mockReturnValue({ data: [primary, makeProfile()], isLoading: false });
+      mocks.useProfiles.mockReturnValue({
+        data: [primary, makeProfile()],
+        isLoading: false,
+        maxProfiles: null,
+      });
 
       await render(<Profiles />);
       await click(findButton(container, "Add profile"));
@@ -323,7 +330,11 @@ describe("Profiles", () => {
 
   it("manages profiles by selecting the verified primary profile", async () => {
     const primary = makeProfile({ id: "primary", name: "Parent", is_primary: true, has_pin: true });
-    mocks.useProfiles.mockReturnValue({ data: [primary, makeProfile()], isLoading: false });
+    mocks.useProfiles.mockReturnValue({
+      data: [primary, makeProfile()],
+      isLoading: false,
+      maxProfiles: null,
+    });
     mocks.searchParams = new URLSearchParams("redirect=%2Fmovies");
 
     await render(<Profiles />);
@@ -338,6 +349,7 @@ describe("Profiles", () => {
     mocks.useProfiles.mockReturnValue({
       data: [makeProfile({ id: "primary", is_primary: true }), makeProfile({ id: "p2" })],
       isLoading: false,
+      maxProfiles: null,
     });
     mocks.listUserLibraries.mockRejectedValue(new TypeError("Failed to fetch"));
 

@@ -1,16 +1,17 @@
-import { decodeThumbhash } from "@/lib/thumbhash";
 import { imageIdentity, useImageLoaded } from "@/hooks/useImageLoaded";
+import { decodeThumbhash } from "@/lib/thumbhash";
 import { cn } from "@/lib/utils";
 
 interface HeroBackdropArtworkProps {
   backdropUrl?: string;
   backdropThumbhash?: string;
+  /** Positions the artwork; the caller draws its own scrim over it. */
   className?: string;
 }
 
 /**
- * A hero's backdrop: the thumbhash placeholder first, then the image fading
- * in over it. The caller positions it and draws its own scrim on top.
+ * A hero's backdrop: the thumbhash placeholder first, then the image fading in
+ * over it. Renders nothing when there is neither.
  */
 export function HeroBackdropArtwork({
   backdropUrl,

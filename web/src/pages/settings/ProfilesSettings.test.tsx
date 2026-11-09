@@ -16,8 +16,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/queries/profiles", () => ({
-  // Room for another profile unless a test says otherwise.
-  useProfiles: (...args: unknown[]) => ({ canAddProfile: true, ...mocks.useProfiles(...args) }),
+  useProfiles: (...args: unknown[]) => mocks.useProfiles(...args),
   useDeleteProfile: () => ({
     isPending: false,
     mutate: (...args: unknown[]) => mocks.deleteMutate(...args),
@@ -187,6 +186,7 @@ describe("ProfilesSettings", () => {
     mocks.useProfiles.mockReturnValue({
       data: [makeProfile()],
       isLoading: false,
+      maxProfiles: null,
     });
     mocks.useAvailableUserLibraries.mockReturnValue({
       data: libraries,
@@ -250,6 +250,7 @@ describe("ProfilesSettings", () => {
     mocks.useProfiles.mockReturnValue({
       data: [makeProfile(), makeProfile({ id: "profile-2", name: "Guest" })],
       isLoading: false,
+      maxProfiles: null,
     });
 
     await render(<ProfilesSettings />);
@@ -271,6 +272,7 @@ describe("ProfilesSettings", () => {
     mocks.useProfiles.mockReturnValue({
       data: [makeProfile(), lockedProfile],
       isLoading: false,
+      maxProfiles: null,
     });
 
     await render(<ProfilesSettings />);
