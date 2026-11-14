@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 
 import CardOverlays from "@/components/overlays/CardOverlays";
 import CardWatchStatus from "@/components/overlays/CardWatchStatus";
+import { OVERLAY_PREVIEW_ART } from "@/components/overlays/previewArt";
 import { RequestDownloadBar } from "@/components/overlays/RequestDownloadBar";
 import { useOverlayPrefs } from "@/hooks/useOverlayPrefs";
 import { useT, type MessageKey } from "@/i18n";
@@ -60,7 +61,7 @@ const SHORTCUT_TILE =
 
 interface PosterCardPreviewViewProps {
   presentation: CardPresentation;
-  /** Null while badges are off. */
+  /** Null draws no badges. */
   overlayPrefs: CardOverlayPrefs | null;
   quickActionMode: CardQuickActionMode;
   /** Samples this server can show; the request sample needs request support. */
@@ -127,6 +128,13 @@ export function PosterCardPreviewView({
                   sample.art,
                 )}
               >
+                <img
+                  src={OVERLAY_PREVIEW_ART[variant]}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
                 {downloadPercent !== null ? <RequestDownloadBar percent={downloadPercent} /> : null}
                 {overlayPrefs ? (
                   <CardOverlays
@@ -183,13 +191,8 @@ export function PosterCardPreviewView({
  */
 export function PosterCardPreview({ revealShortcuts }: { revealShortcuts: boolean }) {
   const { cardPresentation } = useUICustomization();
-  const {
-    editablePrefs,
-    overlaysEnabled,
-    quickActionPreference,
-    quickActionsEnabled,
-    isOverlaySupported,
-  } = useOverlayPrefs();
+  const { editablePrefs, quickActionPreference, quickActionsEnabled, isOverlaySupported } =
+    useOverlayPrefs();
   // The request sample only shows a badge this server lets the profile keep.
   const variants = isOverlaySupported("request_status")
     ? OVERLAY_PREVIEW_VARIANTS
@@ -198,7 +201,8 @@ export function PosterCardPreview({ revealShortcuts }: { revealShortcuts: boolea
   return (
     <PosterCardPreviewView
       presentation={cardPresentation}
-      overlayPrefs={overlaysEnabled ? editablePrefs : null}
+      // Badges always show here, so they can be set up before they go on posters.
+      overlayPrefs={editablePrefs}
       quickActionMode={quickActionsEnabled ? quickActionPreference : "none"}
       variants={variants}
       revealShortcuts={revealShortcuts}
