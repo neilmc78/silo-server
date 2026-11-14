@@ -1346,6 +1346,9 @@ export interface WatchDetail {
   effective_version_hdr?: boolean;
   effective_version_codec_video?: string;
   effective_version_edition_key?: string;
+  /** The item's backdrop (an episode's series backdrop), for loading screens. */
+  backdrop_url?: string;
+  backdrop_thumbhash?: string;
 }
 
 // Episodes
@@ -2029,7 +2032,7 @@ export interface RequestSeasonProgress {
   episodes_available: number;
 }
 
-export interface RequestDiscoverySection extends RequestMediaPage {
+export interface RequestDiscoverySection extends RequestMediaPage, SectionTitleKey {
   key: string;
   title: string;
   /**
@@ -2041,7 +2044,7 @@ export interface RequestDiscoverySection extends RequestMediaPage {
 }
 
 /** One row of the Discover layout, in page order. */
-export interface RequestDiscoverRowRef {
+export interface RequestDiscoverRowRef extends SectionTitleKey {
   key: string;
   /**
    * tmdb_chart, tmdb_discover, tmdb_list or mdblist for a row of titles;
@@ -4071,6 +4074,8 @@ export interface PluginUpdateFailure {
   failed_at: string;
 }
 
+export type PluginSignature = V2Components["schemas"]["AdminPluginSignature"];
+
 export interface PluginInstallation {
   id: number;
   repository_id?: number | null;
@@ -4097,6 +4102,8 @@ export interface PluginInstallation {
   updates_paused: boolean;
   /** The last automatic update that failed; absent when the last check did not fail. */
   update_failure?: PluginUpdateFailure | null;
+  /** The release signature check of the installed package. */
+  signature: PluginSignature;
   legacy_metadata_import_types?: string[];
   created_at?: string;
   updated_at?: string;
@@ -4572,7 +4579,18 @@ export interface SectionItem {
   machine_translated_fields?: string[];
 }
 
-export interface ResolvedSection {
+/**
+ * A section title the server wrote itself carries its key in the shared
+ * catalog, so a client can translate it (docs/catalog-api.md, "Section
+ * titles"). Absent on titles an administrator or profile typed; see
+ * `useSectionTitle`.
+ */
+export interface SectionTitleKey {
+  title_key?: string;
+  title_args?: Record<string, string>;
+}
+
+export interface ResolvedSection extends SectionTitleKey {
   id: string;
   section_type: string;
   title: string;
@@ -4588,7 +4606,7 @@ export interface SectionsResponse {
   sections: ResolvedSection[];
 }
 
-export interface ResolvedSectionLayout {
+export interface ResolvedSectionLayout extends SectionTitleKey {
   id: string;
   section_type: string;
   title: string;
@@ -4636,7 +4654,7 @@ export function isFilterSectionConfig(
   return config != null && "match" in config && "groups" in config;
 }
 
-export interface PageSectionConfig {
+export interface PageSectionConfig extends SectionTitleKey {
   id: string;
   scope: string;
   library_id: number | null;
@@ -4808,12 +4826,15 @@ export interface SectionOverride {
   removed?: boolean;
 }
 
-export interface SettingsSectionEntry {
+export interface SettingsSectionEntry extends SectionTitleKey {
   id: string;
   section_type: string;
   title: string;
   /** The admin row's own title; empty for a profile-built row. Absent on entries built locally. */
   default_title?: string;
+  /** The catalog key of `default_title` while it is the server's own title (see `SectionTitleKey`). */
+  default_title_key?: string;
+  default_title_args?: Record<string, string>;
   featured: boolean;
   item_limit: number;
   hidden: boolean;

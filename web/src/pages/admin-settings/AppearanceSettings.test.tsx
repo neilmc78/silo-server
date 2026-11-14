@@ -138,8 +138,8 @@ describe("AppearanceSettings", () => {
     render(<AppearanceSettings />);
 
     expect(screen.queryByRole("button", { name: /^Advanced/ })).not.toBeInTheDocument();
-    const toggle = screen.getByRole("switch", { name: "Show Resolution" });
-    const wasOn = toggle.getAttribute("aria-checked") === "true";
+    const toggle = screen.getByRole("button", { name: "Resolution" });
+    const wasOn = toggle.getAttribute("aria-pressed") === "true";
     fireEvent.click(toggle);
 
     expect(form.setValue).toHaveBeenCalledTimes(1);

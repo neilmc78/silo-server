@@ -9,9 +9,11 @@ import {
   orderedOverlaysForPosition,
   overlayImageUrl,
   readableTextOn,
+  scoreColor,
 } from "@/lib/overlays";
 import { cn } from "@/lib/utils";
 import type {
+  BadgePart,
   CardOverlayPrefs,
   OverlayData,
   OverlayDef,
@@ -156,6 +158,8 @@ interface ResolvedBadge {
   // The rating's source mark and bare score, when the preset draws chips or
   // an uploaded image already shows the source.
   sourceMark: string | null;
+  // Logos (and text between them) drawn in place of the label.
+  parts: BadgePart[] | null;
   score: string | null;
 }
 
@@ -185,6 +189,9 @@ function resolveBadge(
     valueKey,
     sourceMark: def.sourceMark && score !== null ? def.sourceMark : null,
     score,
+    // Logos only when the viewer turned the badge's icon on themselves, so a
+    // preset that prefers icons keeps its drawn marks.
+    parts: def.iconCapable && config?.showIcon === true ? (def.getParts?.(data) ?? null) : null,
   };
 }
 
@@ -315,6 +322,51 @@ function Badge({ badge, preset, scalingMode, rail }: BadgeProps) {
 
   const iconImage = badge.image && !failedImages.has(badge.image) ? badge.image : null;
   const iconSize = length(preset.iconSize, POSTER_VARS.iconSize);
+
+  if (badge.parts && !iconImage) {
+    // A logo stands about as tall as the badge's text and icons.
+    const logoHeight = iconSize;
+    return (
+      <span
+        {...dataAttributes}
+        aria-label={badge.label}
+        className={`inline-flex max-w-full min-w-0 items-center gap-1 ${preset.badgeClass}`}
+        style={{ ...preset.badgeStyle(badge.accentColor), ...geometry }}
+      >
+        {badge.parts.map((part, index) =>
+          part.kind === "logo" ? (
+            <img
+              key={index}
+              src={part.src}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              decoding="async"
+              className="block shrink-0 object-contain"
+              style={{ height: logoHeight, width: "auto" }}
+            />
+          ) : part.scoreFraction !== undefined ? (
+            <span
+              key={index}
+              aria-hidden="true"
+              className="shrink-0 rounded-full px-[0.45em] py-[0.1em] leading-tight font-bold"
+              style={{
+                background: scoreColor(part.scoreFraction),
+                color: "#111111",
+                textShadow: "none",
+              }}
+            >
+              {part.text}
+            </span>
+          ) : (
+            <span key={index} aria-hidden="true" className="shrink-0">
+              {part.text}
+            </span>
+          ),
+        )}
+      </span>
+    );
+  }
   // An uploaded image beside a rating stands for its source, so the label
   // drops the mark; the plate preset draws the mark as a chip instead.
   const sourceChip = !iconImage && preset.sourceChips && badge.sourceMark !== null;
@@ -367,14 +419,15 @@ function BadgeStack({
   rail,
 }: {
   badges: ResolvedBadge[];
-  align: "start" | "end";
+  align: "start" | "center" | "end";
   preset: OverlayPreset;
   scalingMode: ScalingMode;
   rail?: Rail;
 }) {
+  const items = { start: "items-start", center: "items-center", end: "items-end" }[align];
   return (
     <div
-      className={`flex min-w-0 flex-col ${align === "start" ? "items-start" : "items-end"} ${preset.gapClass}`}
+      className={`flex min-w-0 flex-col ${items} ${preset.gapClass}`}
       style={{ gap: overlayLength(preset.stackGap, scalingMode, POSTER_VARS.stackGap) }}
     >
       {badges.map((badge) => (
@@ -543,6 +596,8 @@ export default function CardOverlays({
       .slice(0, limit);
 
   const topLeft = resolve("top-left", MAX_BADGES_PER_CORNER);
+  const topCenter = resolve("top-center", MAX_BADGES_PER_CORNER);
+  const bottomCenter = resolve("bottom-center", MAX_BADGES_PER_CORNER);
   const bottomLeft = resolve("bottom-left", MAX_BADGES_PER_CORNER);
   const bottomRight = resolve("bottom-right", MAX_BADGES_PER_CORNER);
   const leftRail = resolve("left-edge", MAX_BADGES_PER_RAIL);
@@ -615,12 +670,16 @@ export default function CardOverlays({
   });
 
   return (
+    // Positions are on the artwork, which doesn't mirror: the layer lays out left to
+    // right in every language (its rows are flex rows, and the overflow check
+    // measures right edges).
     <div
       ref={layerRef}
+      dir="ltr"
       data-card-overlays={variant}
       className="@container/card-overlays pointer-events-none absolute inset-0 z-10"
     >
-      {topLeft.length > 0 &&
+      {(topLeft.length > 0 || (band && topCenter.length > 0)) &&
         (band ? (
           <div
             data-overlay-edge="top"
@@ -633,7 +692,11 @@ export default function CardOverlays({
               paddingBottom: `calc(${edgeInset} * 3)`,
             }}
           >
-            <BandMarks badges={topLeft} preset={preset} scalingMode={scalingMode} />
+            <BandMarks
+              badges={[...topLeft, ...topCenter]}
+              preset={preset}
+              scalingMode={scalingMode}
+            />
           </div>
         ) : (
           <div
@@ -674,7 +737,33 @@ export default function CardOverlays({
           />
         </div>
       )}
-      {(bottomLeft.length > 0 || bottomRight.length > 0) &&
+      {!band && topCenter.length > 0 && (
+        <div
+          data-overlay-edge="top-center"
+          className="pointer-events-none absolute left-1/2 z-10 flex max-w-[60%] -translate-x-1/2 justify-center"
+          style={{ top: edgeInset }}
+        >
+          <BadgeStack badges={topCenter} align="center" preset={preset} scalingMode={scalingMode} />
+        </div>
+      )}
+      {!band && bottomCenter.length > 0 && (
+        <div
+          data-overlay-edge="bottom-center"
+          className={cn(
+            "pointer-events-none absolute left-1/2 z-10 flex max-w-[60%] -translate-x-1/2 flex-col-reverse justify-center",
+            hasProgressBar && "mb-2",
+          )}
+          style={{ bottom: edgeInset }}
+        >
+          <BadgeStack
+            badges={bottomCenter}
+            align="center"
+            preset={preset}
+            scalingMode={scalingMode}
+          />
+        </div>
+      )}
+      {(bottomLeft.length > 0 || bottomRight.length > 0 || (band && bottomCenter.length > 0)) &&
         (band ? (
           /* One centred strip for the whole bottom edge, left corner first. */
           <div
@@ -688,7 +777,7 @@ export default function CardOverlays({
             }}
           >
             <BandMarks
-              badges={[...bottomLeft, ...bottomRight]}
+              badges={[...bottomLeft, ...bottomCenter, ...bottomRight]}
               preset={preset}
               scalingMode={scalingMode}
             />

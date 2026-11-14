@@ -1,11 +1,13 @@
 import { formatOutOfTen, formatPercent } from "@/components/ratings/ratings";
 
-import type { OverlayDef } from "../types";
+import { t } from "@/i18n";
+import { overlayLogo } from "../logos";
+import type { BadgePart, OverlayDef } from "../types";
 
 // A rating badge carries its source's mark in the label ("IMDb 8.5", "RT
 // 93%"), the same plain-text mark title pages use, so a score is never shown
-// without its source. Silo draws no source artwork: the owners of these
-// scores restrict their logos.
+// without its source. With the badge's icon setting on, this fork draws the
+// source's logo and the score on a pill coloured by how good it is.
 function ratingScore(value: number | null | undefined, max: 10 | 100): string | null {
   if (value == null) return null;
   return max === 100 ? formatPercent(value) : formatOutOfTen(value);
@@ -16,16 +18,36 @@ function ratingLabel(mark: string, value: number | null | undefined, max: 10 | 1
   return score === null ? null : `${mark} ${score}`;
 }
 
+function ratingParts(
+  logoKey: string,
+  alt: string,
+  value: number | null | undefined,
+  max: 10 | 100,
+): BadgePart[] | null {
+  const score = ratingScore(value, max);
+  const src = overlayLogo(`ratings/${logoKey}`);
+  if (score === null || value == null || !src) return null;
+  return [
+    { kind: "logo", src, alt },
+    { kind: "text", text: score, scoreFraction: value / max },
+  ];
+}
+
 export const RATINGS_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "rating_imdb",
     category: "ratings",
-    label: "IMDb Rating",
-    description: "IMDb score out of 10",
+    get label() {
+      return t("web.settings.overlays.badge.ratingImdb.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.ratingImdb.description");
+    },
     defaultPosition: "left-edge",
     defaultEnabled: false,
     defaultAccent: "#f5c518",
-    iconCapable: false,
+    iconCapable: true,
+    getParts: (d) => ratingParts("imdb", "IMDb", d.rating_imdb, 10),
     getValue: (d) => ratingLabel("IMDb", d.rating_imdb, 10),
     sourceMark: "IMDb",
     getScore: (d) => ratingScore(d.rating_imdb, 10),
@@ -33,12 +55,17 @@ export const RATINGS_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "rating_tmdb",
     category: "ratings",
-    label: "TMDB Rating",
-    description: "TMDB score out of 10",
+    get label() {
+      return t("web.settings.overlays.badge.ratingTmdb.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.ratingTmdb.description");
+    },
     defaultPosition: "left-edge",
     defaultEnabled: false,
     defaultAccent: "#01b4e4",
-    iconCapable: false,
+    iconCapable: true,
+    getParts: (d) => ratingParts("tmdb", "TMDB", d.rating_tmdb, 10),
     getValue: (d) => ratingLabel("TMDB", d.rating_tmdb, 10),
     sourceMark: "TMDB",
     getScore: (d) => ratingScore(d.rating_tmdb, 10),
@@ -46,12 +73,17 @@ export const RATINGS_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "rating_rt",
     category: "ratings",
-    label: "RT Critics",
-    description: "Rotten Tomatoes critic score, when an administrator shows it",
+    get label() {
+      return t("web.settings.overlays.badge.ratingRt.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.ratingRt.description");
+    },
     defaultPosition: "left-edge",
     defaultEnabled: false,
     defaultAccent: "#fa320a",
-    iconCapable: false,
+    iconCapable: true,
+    getParts: (d) => ratingParts("rt_critic", "Rotten Tomatoes", d.rating_rt_critic, 100),
     ratingSource: "rt_critic",
     getValue: (d) => ratingLabel("RT", d.rating_rt_critic, 100),
     sourceMark: "RT",
@@ -60,22 +92,34 @@ export const RATINGS_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "rating_rt_audience",
     category: "ratings",
-    label: "RT Audience",
-    description: "Rotten Tomatoes audience score, when an administrator shows it",
+    get label() {
+      return t("web.settings.overlays.badge.ratingRtAudience.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.ratingRtAudience.description");
+    },
     defaultPosition: "left-edge",
     defaultEnabled: false,
     defaultAccent: "#fa6400",
-    iconCapable: false,
+    iconCapable: true,
+    getParts: (d) =>
+      ratingParts("rt_audience", "Rotten Tomatoes audience", d.rating_rt_audience, 100),
     ratingSource: "rt_audience",
-    getValue: (d) => ratingLabel("RT Audience", d.rating_rt_audience, 100),
-    sourceMark: "RT Audience",
+    getValue: (d) => ratingLabel(t("web.item.card.rtAudience"), d.rating_rt_audience, 100),
+    get sourceMark() {
+      return t("web.item.card.rtAudience");
+    },
     getScore: (d) => ratingScore(d.rating_rt_audience, 100),
   },
   {
     id: "content_rating",
     category: "ratings",
-    label: "Age Rating",
-    description: "Content rating (PG-13, TV-MA, R, etc.)",
+    get label() {
+      return t("web.settings.overlays.badge.contentRating.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.contentRating.description");
+    },
     defaultPosition: "bottom-right",
     defaultEnabled: false,
     iconId: "shield",
@@ -86,8 +130,12 @@ export const RATINGS_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "advisory_age",
     category: "ratings",
-    label: "Advisory Age",
-    description: "Recommended minimum viewer age, such as Common Sense Media's 13+",
+    get label() {
+      return t("web.settings.overlays.badge.advisoryAge.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.advisoryAge.description");
+    },
     defaultPosition: "bottom-right",
     defaultEnabled: false,
     iconId: "users",

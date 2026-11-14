@@ -98,7 +98,16 @@
     "position": {
       "description": "Where a badge sits. top-right is reserved for the status corner: clients draw a badge stored there on the right edge and write right-edge instead.",
       "type": "string",
-      "enum": ["top-left", "top-right", "bottom-left", "bottom-right", "left-edge", "right-edge"]
+      "enum": [
+        "top-left",
+        "top-center",
+        "top-right",
+        "bottom-left",
+        "bottom-center",
+        "bottom-right",
+        "left-edge",
+        "right-edge"
+      ]
     },
     "imageRef": {
       "description": "Content reference of an image an administrator uploaded, as listed by the overlay-config endpoint.",

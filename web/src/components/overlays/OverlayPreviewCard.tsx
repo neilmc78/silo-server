@@ -1,5 +1,6 @@
 import CardOverlays from "./CardOverlays";
 import CardWatchStatus from "./CardWatchStatus";
+import { OVERLAY_PREVIEW_ART } from "./previewArt";
 import { RequestDownloadBar } from "./RequestDownloadBar";
 import {
   OVERLAY_PREVIEW_SAMPLES,
@@ -17,12 +18,6 @@ import { carouselCardWidthClasses, type PosterSize } from "@/lib/uiCustomization
  */
 export type { OverlayPreviewVariant };
 
-const PLACEHOLDER_LABEL: Record<OverlayPreviewVariant, string> = {
-  movie: "Movie preview",
-  show: "Show preview",
-  requested: "Requested preview",
-};
-
 interface OverlayPreviewCardProps {
   prefs: CardOverlayPrefs;
   variant?: OverlayPreviewVariant;
@@ -31,8 +26,7 @@ interface OverlayPreviewCardProps {
   showPosterOverlays?: boolean;
 }
 
-// Preview used by the admin defaults editor. Renders a 2:3 poster
-// placeholder with the actual <CardOverlays /> renderer on top of it,
+// Preview used by the admin defaults editor. Renders a 2:3 sample poster with the actual <CardOverlays /> renderer on top of it,
 // fed sample data, at the width a home-row card draws at so badges show at
 // their real size.
 export function OverlayPreviewCard({
@@ -46,9 +40,13 @@ export function OverlayPreviewCard({
   return (
     <div className={`mx-auto ${carouselCardWidthClasses(posterSize)}`}>
       <div className="bg-muted/40 relative aspect-[2/3] overflow-hidden rounded-xl border">
-        <div className="text-muted-foreground/30 flex h-full items-center justify-center text-xs font-medium tracking-wider uppercase">
-          {PLACEHOLDER_LABEL[variant]}
-        </div>
+        <img
+          src={OVERLAY_PREVIEW_ART[variant]}
+          alt=""
+          aria-hidden="true"
+          draggable={false}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
         {downloadPercent !== null ? <RequestDownloadBar percent={downloadPercent} /> : null}
         {showPosterOverlays ? (
           <CardOverlays data={data} prefs={prefs} hasProgressBar={downloadPercent !== null} />

@@ -2,13 +2,15 @@ import AdminCatalogMaintenance from "@/components/AdminCatalogMaintenance";
 import AdminJobHistory from "@/components/AdminJobHistory";
 import { RestartServerButton } from "@/components/admin/RestartServerButton";
 import { PageHeader } from "@/components/page/PageHeader";
+import { useT } from "@/i18n";
 
 export default function AdminMaintenance() {
+  const t = useT();
   return (
     <div className="space-y-6 pb-4 sm:pb-6">
       <PageHeader
-        title="Maintenance"
-        subtitle="Operational tools that affect the whole catalog live here. Use this page for bulk import/export workflows and other future maintenance actions. Restarting tells playback in progress first, then stops this server for its supervisor to start again; other nodes in a cluster keep running."
+        title={t("web.admin.maintenance.page.title")}
+        subtitle={t("web.admin.maintenance.page.subtitleWithRestart")}
         actions={<RestartServerButton />}
       />
 

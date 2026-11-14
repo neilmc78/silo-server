@@ -1,5 +1,7 @@
 import { compactHdrSuffix, prettyResolution } from "@/lib/mediaFormat";
-import type { OverlayDef, OverlayIconId } from "../types";
+import { t } from "@/i18n";
+import { overlayLogo } from "../logos";
+import type { BadgePart, OverlayDef, OverlayIconId } from "../types";
 
 // Tech overlays — derived from the media file (codec, container, resolution,
 // audio properties). All data flows through OverlaySummary on the backend.
@@ -28,12 +30,54 @@ function videoCodecIcon(value: string | undefined): OverlayIconId | null {
   return "film";
 }
 
+// Format logos, keyed by file name under web/src/assets/overlay-logos/formats.
+// A format without a bundled file keeps its text inside the badge.
+const FORMAT_LOGOS: Record<string, string> = {
+  DV: "dolby-vision",
+  "HDR10+": "hdr10plus",
+  HDR10: "hdr",
+  HDR: "hdr",
+  Atmos: "dolby-atmos",
+  TrueHD: "dolby-truehd",
+  "DTS-HD": "dts-hd",
+  EAC3: "dolby-digital-plus",
+  IMAX: "imax",
+};
+
+function formatPart(name: string): BadgePart {
+  const key = FORMAT_LOGOS[name];
+  const src = key ? overlayLogo(`formats/${key}`) : undefined;
+  return src ? { kind: "logo", src, alt: name } : { kind: "text", text: name };
+}
+
+// A dynamic-range value names one or two formats ("DV HDR10"). With Dolby
+// Vision only its logo shows, as the HDR10 base layer is implied.
+function hdrNames(value: string | undefined): string[] {
+  if (!value) return [];
+  const names = value.split(" ").filter(Boolean);
+  return names.includes("DV") ? ["DV"] : names;
+}
+
+// The parts for a run of formats, or null when none has a logo (the badge
+// keeps its label).
+function formatParts(texts: (string | null | undefined)[], formats: string[]): BadgePart[] | null {
+  const parts: BadgePart[] = [
+    ...texts.filter((x): x is string => !!x).map((text) => ({ kind: "text" as const, text })),
+    ...formats.map(formatPart),
+  ];
+  return parts.some((part) => part.kind === "logo") ? parts : null;
+}
+
 export const TECH_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "resolution",
     category: "tech",
-    label: "Resolution",
-    description: "Video resolution (4K, 1080p, 720p, etc.)",
+    get label() {
+      return t("web.settings.overlays.badge.resolution.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.resolution.description");
+    },
     defaultPosition: "top-left",
     defaultEnabled: true,
     iconId: "monitor",
@@ -45,8 +89,12 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "hdr",
     category: "tech",
-    label: "HDR / Dolby Vision",
-    description: "Dynamic range format (HDR10, DV, HLG)",
+    get label() {
+      return t("web.settings.overlays.badge.hdr.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.hdr.description");
+    },
     defaultPosition: "top-left",
     defaultEnabled: true,
     iconCapable: true,
@@ -54,13 +102,20 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     getValueKey: (d) => d.hdr || null,
     valueKeySuggestions: ["DV", "DV HDR10", "DV HDR10+", "HDR10", "HDR10+", "HLG", "HDR"],
     getIcon: (d) => hdrIcon(d.hdr),
+    getParts: (d) => formatParts([], hdrNames(d.hdr)),
   },
   {
     id: "resolution_hdr",
     category: "tech",
-    label: "Resolution + HDR (combined)",
-    description:
-      'Single badge combining resolution and dynamic range (e.g. "4K DV", "4K HDR10+", "1080p HDR")',
+    get label() {
+      return t("web.settings.overlays.badge.resolutionHdr.label");
+    },
+    get shortLabel() {
+      return t("web.settings.overlays.badge.resolutionHdr.shortLabel");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.resolutionHdr.description");
+    },
     defaultPosition: "top-left",
     defaultEnabled: false,
     iconCapable: true,
@@ -73,6 +128,7 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     // Only the DV circle mark works next to a combined label; a wordmark
     // (HDR10) would visually duplicate the label's HDR suffix.
     getIcon: (d) => (d.hdr?.includes("DV") ? "dolby-vision" : null),
+    getParts: (d) => formatParts([prettyResolution(d.resolution)], hdrNames(d.hdr)),
     // The resolution and dynamic range as the API returns them, joined by a
     // space: "2160p DV HDR10", or "1080p" without HDR.
     getValueKey: (d) => (d.resolution ? [d.resolution, d.hdr].filter(Boolean).join(" ") : null),
@@ -80,9 +136,15 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "resolution_hdr_audio",
     category: "tech",
-    label: "Resolution + HDR + Audio (combined)",
-    description:
-      'Single badge combining resolution, dynamic range and audio codec (e.g. "4K DV Atmos", "1080p TrueHD")',
+    get label() {
+      return t("web.settings.overlays.badge.resolutionHdrAudio.label");
+    },
+    get shortLabel() {
+      return t("web.settings.overlays.badge.resolutionHdrAudio.shortLabel");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.resolutionHdrAudio.description");
+    },
     defaultPosition: "top-left",
     defaultEnabled: false,
     iconCapable: true,
@@ -96,6 +158,11 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     // Same rule as the Resolution + HDR badge: an Atmos or HDR10 wordmark
     // would repeat words already in the label.
     getIcon: (d) => (d.hdr?.includes("DV") ? "dolby-vision" : null),
+    getParts: (d) =>
+      formatParts(
+        [prettyResolution(d.resolution)],
+        [...hdrNames(d.hdr), ...(d.audio ? [d.audio] : [])],
+      ),
     // The API's resolution, dynamic range and audio values joined by a space:
     // "2160p DV HDR10 Atmos", or only the parts the file has.
     getValueKey: (d) => [d.resolution, d.hdr, d.audio].filter(Boolean).join(" ") || null,
@@ -103,8 +170,12 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "audio",
     category: "tech",
-    label: "Audio Codec",
-    description: "Audio codec (Atmos, DTS-HD, TrueHD, etc.)",
+    get label() {
+      return t("web.settings.overlays.badge.audio.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.audio.description");
+    },
     defaultPosition: "top-left",
     defaultEnabled: true,
     iconCapable: true,
@@ -112,12 +183,17 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     getValueKey: (d) => d.audio || null,
     valueKeySuggestions: ["Atmos", "TrueHD", "DTS-HD", "DTS", "EAC3", "AC3", "AAC", "FLAC"],
     getIcon: (d) => audioIcon(d.audio),
+    getParts: (d) => (d.audio ? formatParts([], [d.audio]) : null),
   },
   {
     id: "audio_channels",
     category: "tech",
-    label: "Audio Channels",
-    description: "Channel layout (Stereo, 5.1, 7.1)",
+    get label() {
+      return t("web.settings.overlays.badge.audioChannels.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.audioChannels.description");
+    },
     defaultPosition: "top-left",
     defaultEnabled: false,
     iconId: "volume",
@@ -128,8 +204,12 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "video_codec",
     category: "tech",
-    label: "Video Codec",
-    description: "Video codec (H.264, H.265, AV1)",
+    get label() {
+      return t("web.settings.overlays.badge.videoCodec.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.videoCodec.description");
+    },
     defaultPosition: "top-left",
     defaultEnabled: false,
     iconId: "film",
@@ -142,8 +222,12 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "container",
     category: "tech",
-    label: "Container",
-    description: "File container (MKV, MP4, etc.)",
+    get label() {
+      return t("web.settings.overlays.badge.container.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.container.description");
+    },
     defaultPosition: "bottom-left",
     defaultEnabled: false,
     iconCapable: false,
@@ -153,8 +237,12 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "aspect_ratio",
     category: "tech",
-    label: "Aspect Ratio",
-    description: "Display aspect ratio (16:9, 2.39:1, etc.)",
+    get label() {
+      return t("web.settings.overlays.badge.aspectRatio.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.aspectRatio.description");
+    },
     defaultPosition: "bottom-right",
     defaultEnabled: false,
     iconId: "layout",
@@ -165,8 +253,12 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "release_type",
     category: "tech",
-    label: "Release Type",
-    description: "Source format (REMUX, BluRay, WEB-DL, etc.)",
+    get label() {
+      return t("web.settings.overlays.badge.releaseType.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.releaseType.description");
+    },
     defaultPosition: "bottom-left",
     defaultEnabled: true,
     iconCapable: false,
@@ -177,30 +269,44 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "edition",
     category: "tech",
-    label: "Edition",
-    description: "Edition label from the best available media version",
+    get label() {
+      return t("web.settings.overlays.badge.edition.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.edition.description");
+    },
     defaultPosition: "bottom-left",
     defaultEnabled: false,
-    iconCapable: false,
+    iconCapable: true,
+    // An IMAX edition shows the IMAX logo while the icon setting is on.
+    getParts: (d) => (d.edition && /\bimax\b/i.test(d.edition) ? formatParts([], ["IMAX"]) : null),
     getValue: (d) => d.edition ?? null,
     getValueKey: (d) => d.edition || null,
   },
   {
     id: "multi_audio",
     category: "tech",
-    label: "Multi-Audio",
-    description: "Shown when the file has audio in 2+ languages",
+    get label() {
+      return t("web.settings.overlays.badge.multiAudio.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.multiAudio.description");
+    },
     defaultPosition: "bottom-right",
     defaultEnabled: false,
     iconId: "languages",
     iconCapable: true,
-    getValue: (d) => (d.multi_audio ? "Multi-Audio" : null),
+    getValue: (d) => (d.multi_audio ? t("web.settings.overlays.badge.multiAudio.value") : null),
   },
   {
     id: "multi_sub",
     category: "tech",
-    label: "Subtitles Available",
-    description: "Shown when the file has any subtitle track",
+    get label() {
+      return t("web.settings.overlays.badge.multiSub.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.multiSub.description");
+    },
     defaultPosition: "bottom-right",
     defaultEnabled: false,
     iconId: "subtitles",
