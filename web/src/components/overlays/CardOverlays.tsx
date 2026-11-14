@@ -9,9 +9,11 @@ import {
   orderedOverlaysForPosition,
   overlayImageUrl,
   readableTextOn,
+  scoreColor,
 } from "@/lib/overlays";
 import { cn } from "@/lib/utils";
 import type {
+  BadgePart,
   CardOverlayPrefs,
   OverlayData,
   OverlayDef,
@@ -156,6 +158,8 @@ interface ResolvedBadge {
   // The rating's source mark and bare score, when the preset draws chips or
   // an uploaded image already shows the source.
   sourceMark: string | null;
+  // Logos (and text between them) drawn in place of the label.
+  parts: BadgePart[] | null;
   score: string | null;
 }
 
@@ -185,6 +189,9 @@ function resolveBadge(
     valueKey,
     sourceMark: def.sourceMark && score !== null ? def.sourceMark : null,
     score,
+    // Logos only when the viewer turned the badge's icon on themselves, so a
+    // preset that prefers icons keeps its drawn marks.
+    parts: def.iconCapable && config?.showIcon === true ? (def.getParts?.(data) ?? null) : null,
   };
 }
 
@@ -315,6 +322,51 @@ function Badge({ badge, preset, scalingMode, rail }: BadgeProps) {
 
   const iconImage = badge.image && !failedImages.has(badge.image) ? badge.image : null;
   const iconSize = length(preset.iconSize, POSTER_VARS.iconSize);
+
+  if (badge.parts && !iconImage) {
+    // A logo stands about as tall as the badge's text and icons.
+    const logoHeight = iconSize;
+    return (
+      <span
+        {...dataAttributes}
+        aria-label={badge.label}
+        className={`inline-flex max-w-full min-w-0 items-center gap-1 ${preset.badgeClass}`}
+        style={{ ...preset.badgeStyle(badge.accentColor), ...geometry }}
+      >
+        {badge.parts.map((part, index) =>
+          part.kind === "logo" ? (
+            <img
+              key={index}
+              src={part.src}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              decoding="async"
+              className="block shrink-0 object-contain"
+              style={{ height: logoHeight, width: "auto" }}
+            />
+          ) : part.scoreFraction !== undefined ? (
+            <span
+              key={index}
+              aria-hidden="true"
+              className="shrink-0 rounded-full px-[0.45em] py-[0.1em] leading-tight font-bold"
+              style={{
+                background: scoreColor(part.scoreFraction),
+                color: "#111111",
+                textShadow: "none",
+              }}
+            >
+              {part.text}
+            </span>
+          ) : (
+            <span key={index} aria-hidden="true" className="shrink-0">
+              {part.text}
+            </span>
+          ),
+        )}
+      </span>
+    );
+  }
   // An uploaded image beside a rating stands for its source, so the label
   // drops the mark; the plate preset draws the mark as a chip instead.
   const sourceChip = !iconImage && preset.sourceChips && badge.sourceMark !== null;
