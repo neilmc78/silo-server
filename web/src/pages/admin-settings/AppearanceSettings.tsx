@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlertTriangle, Check, ImageIcon, RotateCcw } from "lucide-react";
+import { AlertTriangle, Check, RotateCcw } from "lucide-react";
 
 import { BrandingAssetField } from "@/components/admin/BrandingAssetField";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -8,21 +8,10 @@ import {
   type OverlayPreviewVariant,
 } from "@/components/overlays/OverlayPreviewCard";
 import { OverlayPreviewVariantToggle } from "@/components/overlays/OverlayPreviewVariantToggle";
-import { BadgeImagesControl } from "@/components/overlays/settings/BadgeImagesControl";
+import { BadgePills } from "@/components/overlays/settings/BadgePills";
 import { OverlayImageLibrary } from "@/components/overlays/settings/OverlayImageLibrary";
 import { OverlayLookControls } from "@/components/overlays/settings/OverlayLookControls";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SettingsPageHeader } from "@/components/settings/SettingsPageHeader";
-import { SettingsSubheading } from "@/components/settings/SettingsSubheading";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { useBranding } from "@/hooks/useBranding";
 import { useT } from "@/i18n";
 import { useRestartKeys } from "@/hooks/useRestartKeys";
@@ -32,16 +21,10 @@ import { useOverlayPrefs } from "@/hooks/useOverlayPrefs";
 import { useEffectiveSettings } from "@/hooks/queries/settingValues";
 import {
   buildDefaultPrefs,
-  CATEGORY_META,
-  OVERLAY_CATEGORIES,
-  OVERLAY_REGISTRY,
   isOverlayOffered,
-  POSITION_OPTIONS,
   parseOverlayPrefs,
   serializeOverlayPrefs,
   type CardOverlayPrefs,
-  type OverlayId,
-  type OverlayPosition,
 } from "@/lib/overlays";
 import { adminDefaultServerKey } from "@/lib/settingsAdminDefaults";
 import { SETTING_DEFINITIONS, SETTING_KEYS } from "@/lib/settingsContract";
@@ -127,7 +110,6 @@ export default function AppearanceSettings() {
   const s3Configured = Boolean(form.getValue("s3.public_bucket"));
   const assetStorageAvailable = branding.storageAvailable;
 
-  const overlaysEnabled = form.getValue(OVERLAYS_ENABLED_KEY) !== "false";
   const overlayPrefs = parseOverlayPrefs(
     form.getValue(OVERLAY_DEFAULTS_KEY) || BUILT_IN_OVERLAY_DEFAULTS,
   );
@@ -136,16 +118,6 @@ export default function AppearanceSettings() {
 
   const setOverlayPrefs = (next: CardOverlayPrefs) =>
     form.setValue(OVERLAY_DEFAULTS_KEY, serializeOverlayPrefs(next));
-
-  const updateOverlayItem = (
-    id: OverlayId,
-    patch: Partial<CardOverlayPrefs["items"][OverlayId]>,
-  ) => {
-    setOverlayPrefs({
-      ...overlayPrefs,
-      items: { ...overlayPrefs.items, [id]: { ...overlayPrefs.items[id], ...patch } },
-    });
-  };
 
   // Restoring stages the built-in document like any other edit rather than
   // writing it: the admin still confirms the whole batch through the SaveBar,
@@ -318,10 +290,7 @@ export default function AppearanceSettings() {
           {/* Row and preview are one list child so the hairline falls after
               the pair, not between them. The preview gets a full-width framed
               strip instead of squatting in the row's control column. */}
-          <div
-            inert={!overlaysEnabled}
-            className={overlaysEnabled ? undefined : "pointer-events-none opacity-50"}
-          >
+          <div>
             <div className="space-y-2 py-4">
               <p className="text-sm font-medium">
                 {t("web.admin.settings.appearance.overlays.style.label")}
@@ -352,96 +321,14 @@ export default function AppearanceSettings() {
             </div>
           </div>
 
-          <div
-            inert={!overlaysEnabled}
-            className={cn(overlaysEnabled ? "" : "pointer-events-none opacity-50")}
-          >
-            {OVERLAY_CATEGORIES.map((category) => {
-              const overlays = OVERLAY_REGISTRY.filter(
-                (d) => d.category === category && isOverlayOffered(d, shownRatingSources),
-              );
-              if (overlays.length === 0) return null;
-              return (
-                <div key={category} className="min-w-0">
-                  <SettingsSubheading>{CATEGORY_META[category].title}</SettingsSubheading>
-                  <div className="settings-field-list">
-                    {overlays.map((def) => {
-                      const config = overlayPrefs.items[def.id];
-                      return (
-                        <SettingFieldRow
-                          key={def.id}
-                          label={def.label}
-                          description={def.description}
-                        >
-                          <Select
-                            value={config.position}
-                            disabled={!config.enabled}
-                            onValueChange={(pos) =>
-                              updateOverlayItem(def.id, { position: pos as OverlayPosition })
-                            }
-                          >
-                            <SelectTrigger
-                              className="w-[140px]"
-                              aria-label={t("web.admin.settings.appearance.overlays.position", {
-                                label: def.label,
-                              })}
-                            >
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {POSITION_OPTIONS.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {supportsStyles &&
-                          (images.length > 0 || config.image || config.valueImages) ? (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  disabled={!config.enabled}
-                                  aria-label={t("web.admin.settings.appearance.overlays.images", {
-                                    label: def.label,
-                                  })}
-                                  className={cn(
-                                    (config.image || config.valueImages) && "text-primary",
-                                  )}
-                                >
-                                  <ImageIcon className="h-4 w-4" aria-hidden="true" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent align="end" className="w-80 p-4">
-                                <BadgeImagesControl
-                                  def={def}
-                                  config={config}
-                                  images={images}
-                                  onChange={(patch) => updateOverlayItem(def.id, patch)}
-                                />
-                              </PopoverContent>
-                            </Popover>
-                          ) : null}
-                          <Switch
-                            checked={config.enabled}
-                            aria-label={t("web.admin.settings.appearance.overlays.show", {
-                              label: def.label,
-                            })}
-                            onCheckedChange={(checked) =>
-                              updateOverlayItem(def.id, { enabled: checked })
-                            }
-                          />
-                        </SettingFieldRow>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <BadgePills
+            prefs={overlayPrefs}
+            onChange={setOverlayPrefs}
+            isOffered={(d) => isOverlayOffered(d, shownRatingSources)}
+            shortcutsOn={false}
+            images={images}
+            supportsStyles={supportsStyles}
+          />
         </FieldGroup>
 
         {supportsStyles ? (

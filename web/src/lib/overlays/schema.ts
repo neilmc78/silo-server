@@ -280,10 +280,12 @@ export function supportsOverlayStyles(support: OverlayServerSupport): boolean {
 }
 
 // The position an older server stores for a badge: the corner on the same
-// side, as the badge sat before the edge rails existed.
+// side, as the badge sat before the edge rails and centre positions existed.
 const LEGACY_POSITION: Partial<Record<OverlayPosition, string>> = {
   "left-edge": "top-left",
   "right-edge": "top-right",
+  "top-center": "top-left",
+  "bottom-center": "bottom-left",
 };
 
 // The document as the server can store it: ids it does not accept are

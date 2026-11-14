@@ -1,11 +1,13 @@
 import type { CSSProperties } from "react";
 
-// Position on the poster card where a badge group is anchored: three corners
-// and a rail centred on each side edge. The top-right corner belongs to the
+// Position on the poster card where a badge group is anchored: three corners,
+// the middle of the top and bottom edges, and a rail centred on each side edge. The top-right corner belongs to the
 // watch-status indicator (CardWatchStatus), so no badge is placed there.
 export const OVERLAY_POSITIONS = [
   "top-left",
+  "top-center",
   "bottom-left",
+  "bottom-center",
   "bottom-right",
   "left-edge",
   "right-edge",
@@ -182,6 +184,13 @@ export interface OverlayPreset {
   accentStrategy: AccentStrategy;
 }
 
+// One piece of a badge drawn from parts while its icon setting is on: a
+// bundled logo, or text. A score part carries its fraction of the scale's top,
+// and draws as a pill coloured by how good it is.
+export type BadgePart =
+  | { kind: "logo"; src: string; alt: string }
+  | { kind: "text"; text: string; scoreFraction?: number };
+
 // Registry entry describing one overlay type.
 export interface OverlayDef {
   id: OverlayId;
@@ -214,6 +223,9 @@ export interface OverlayDef {
   // Value keys the settings UI suggests when assigning per-value images.
   valueKeySuggestions?: readonly string[];
   getIcon?: (data: OverlayData) => OverlayIconId | null; // dynamic icon by data
+  // Logo parts drawn in place of the label while the icon setting is on;
+  // null keeps the label (no bundled logo for this value).
+  getParts?: (data: OverlayData) => BadgePart[] | null;
   // Accent by data, used when the viewer has not picked an accent for the
   // badge; null falls back to defaultAccent.
   getAccent?: (data: OverlayData) => string | null;
