@@ -16,6 +16,7 @@ import { buildMediaPlayHref, isVideoWatchHref } from "@/lib/mediaNavigation";
 import { parseWatchHref } from "@/pages/watchRouteHelpers";
 import { useWatchPlaybackController } from "@/playback/watchPlaybackContext";
 import { cn } from "@/lib/utils";
+import { useT } from "@/i18n";
 
 interface CardPlayOverlayProps {
   contentId: string;
@@ -37,6 +38,7 @@ export default function CardPlayOverlay({
   onPlaybackStart,
   pickEdition = true,
 }: CardPlayOverlayProps) {
+  const t = useT();
   const location = useLocation();
   const playbackController = useWatchPlaybackController();
   const watchHref = buildMediaPlayHref({ contentId, type: mediaType, libraryId });
@@ -86,7 +88,7 @@ export default function CardPlayOverlay({
       }
       void fetchCatalogItemDetail(contentId, libraryId).then(
         (item) => {
-          const options = buildEditionOptions(item.playback_variants, item.versions);
+          const options = buildEditionOptions(t, item.playback_variants, item.versions);
           if (hasEditionChoice(options)) {
             setEditions(options);
           } else {
@@ -97,14 +99,14 @@ export default function CardPlayOverlay({
         () => play(),
       );
     },
-    [contentId, libraryId, mediaType, pickEdition, play, watchHref],
+    [contentId, libraryId, mediaType, pickEdition, play, t, watchHref],
   );
 
   const link = (
     <ViewTransitionLink
       to={watchHref}
       onClick={handleClick}
-      aria-label={`Play ${title}`}
+      aria-label={t("web.item.card.play", { title })}
       className={cn(
         MEDIA_CARD_CENTER_ACTION_CLASS,
         "pointer-events-auto",
@@ -112,6 +114,7 @@ export default function CardPlayOverlay({
       )}
     >
       <Play
+        // eslint-disable-next-line silo/no-physical-direction -- centres the play triangle, which doesn't mirror
         className={cn("ml-px", size === "compact" ? "h-2.5 w-2.5" : "h-[15px] w-[15px]")}
         fill="currentColor"
       />
@@ -138,7 +141,7 @@ export default function CardPlayOverlay({
         onPointerDown={(event) => event.stopPropagation()}
       >
         {editions?.map((option) => {
-          const detail = buildEditionDetail(option);
+          const detail = buildEditionDetail(t, option);
           return (
             <button
               key={option.id}
@@ -147,7 +150,7 @@ export default function CardPlayOverlay({
                 setEditions(null);
                 play(option.defaultVersion.file_id);
               }}
-              className="hover:bg-accent/50 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors"
+              className="hover:bg-accent/50 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-start transition-colors"
             >
               <Play className="text-primary size-3.5 shrink-0" fill="currentColor" />
               <div className="min-w-0 flex-1">

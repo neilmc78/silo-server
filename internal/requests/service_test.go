@@ -666,12 +666,12 @@ func TestDisabledRequestsBlockUserSurfaces(t *testing.T) {
 			_, err := service.Search(context.Background(), viewer, "fight", MediaTypeMovie, 1)
 			return err
 		}},
-		{"discover all", func() error {
-			_, err := service.DiscoverAll(context.Background(), viewer)
+		{"discover rows", func() error {
+			_, err := service.DiscoverRows(context.Background(), viewer)
 			return err
 		}},
-		{"discover section", func() error {
-			_, err := service.Discover(context.Background(), viewer, "popular_movies", 1)
+		{"discover row", func() error {
+			_, err := service.DiscoverRow(context.Background(), viewer, "popular_movies", 1)
 			return err
 		}},
 		{"detail", func() error {
@@ -2379,7 +2379,9 @@ type fakePresence struct {
 	byTVDB    map[MediaType]map[int]int
 	got       []PresenceCandidate
 	// seasons holds per-season counts by series content ID.
-	seasons       map[string]map[int]SeasonCounts
+	seasons map[string]map[int]SeasonCounts
+	// seasonErr fails SeasonAvailability.
+	seasonErr     error
 	seasonLookups int
 }
 
@@ -2387,6 +2389,9 @@ func (f *fakePresence) SeasonAvailability(_ context.Context, seriesContentIDs []
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.seasonLookups++
+	if f.seasonErr != nil {
+		return nil, f.seasonErr
+	}
 	out := map[string]map[int]SeasonCounts{}
 	for _, id := range seriesContentIDs {
 		if counts, ok := f.seasons[id]; ok {
@@ -2614,6 +2619,14 @@ type fakeRouterProvider struct {
 	optionsErr     error
 	gotOptionsConn ResolvedRouterConnection
 
+	// TestConnection behavior: testFails answers not ok with testMessage;
+	// testErr fails the call itself.
+	testFails   bool
+	testMessage string
+	testErr     error
+	testCalls   int
+	gotTestConn ResolvedRouterConnection
+
 	// Validate behavior (default empty = valid).
 	validateFieldErrors   map[string]string
 	validateFormError     string
@@ -2705,8 +2718,15 @@ func (f *fakeRouterProvider) ListConfigOptions(_ context.Context, _ int, _ strin
 	return f.options, nil
 }
 
-func (f *fakeRouterProvider) TestConnection(_ context.Context, _ int, _ string, _ ResolvedRouterConnection) (bool, string, error) {
-	return true, "", nil
+func (f *fakeRouterProvider) TestConnection(_ context.Context, _ int, _ string, conn ResolvedRouterConnection) (bool, string, error) {
+	f.mu.Lock()
+	f.testCalls++
+	f.gotTestConn = conn
+	f.mu.Unlock()
+	if f.testErr != nil {
+		return false, "", f.testErr
+	}
+	return !f.testFails, f.testMessage, nil
 }
 
 func (f *fakeRouterProvider) Validate(_ context.Context, _ int, capabilityID string, conn ResolvedRouterConnection, siblings []ResolvedRouterConnection) (map[string]string, string, error) {
