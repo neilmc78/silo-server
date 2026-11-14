@@ -1,7 +1,8 @@
 import { useId } from "react";
-import { Check, SlidersHorizontal } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, SlidersHorizontal } from "lucide-react";
 
 import { BadgeImagesControl } from "@/components/overlays/settings/BadgeImagesControl";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
@@ -10,6 +11,8 @@ import {
   ACCENT_PALETTE,
   getOverlayDef,
   getPreset,
+  moveInStack,
+  orderedOverlaysForPosition,
   POSITION_OPTIONS,
   type CardOverlayPrefs,
   type OverlayId,
@@ -39,6 +42,8 @@ interface BadgeAdjustProps {
   images: readonly OverlayImage[];
   supportsStyles: boolean;
   onChange: (next: Partial<OverlayItemConfig>) => void;
+  /** Writes a new render order for the layout being edited. */
+  onOrderChange: (order: OverlayId[]) => void;
   triggerClassName?: string;
 }
 
@@ -50,15 +55,20 @@ export function BadgeAdjust({
   images,
   supportsStyles,
   onChange,
+  onOrderChange,
   triggerClassName,
 }: BadgeAdjustProps) {
   const t = useT();
   const def = getOverlayDef(overlayId);
   const iconSwitchId = useId();
+  const statusColorId = useId();
   if (!def) return null;
   const config = prefs.items[overlayId];
   const showIcon = !!def.iconCapable && (config.showIcon ?? getPreset(prefs.preset).preferIcon);
   const color = config.accentColor;
+  // The badges drawn in this badge's place, top of the stack first.
+  const stack = orderedOverlaysForPosition(prefs, config.position).map((d) => d.id);
+  const place = stack.indexOf(overlayId);
 
   return (
     <Popover>
@@ -123,6 +133,44 @@ export function BadgeAdjust({
           </div>
         </div>
 
+        {stack.length > 1 && place !== -1 ? (
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">{t("web.settings.cardOverlay.order.title")}</p>
+              <p className="text-muted-foreground text-[13px]">
+                {t("web.settings.cardOverlay.order.place", {
+                  place: place + 1,
+                  total: stack.length,
+                })}
+              </p>
+            </div>
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                disabled={place === 0}
+                aria-label={t("web.settings.cardOverlay.order.up")}
+                onClick={() => onOrderChange(moveInStack(prefs, overlayId, -1))}
+              >
+                <ArrowUp className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                disabled={place === stack.length - 1}
+                aria-label={t("web.settings.cardOverlay.order.down")}
+                onClick={() => onOrderChange(moveInStack(prefs, overlayId, 1))}
+              >
+                <ArrowDown className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="space-y-2">
           <p className="text-sm font-medium">{t("web.settings.cardOverlay.color")}</p>
           <div
@@ -165,6 +213,24 @@ export function BadgeAdjust({
             ))}
           </div>
         </div>
+
+        {def.statusAccent ? (
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <Label htmlFor={statusColorId} className="text-sm font-medium">
+                {t("web.settings.cardOverlay.statusColor.label")}
+              </Label>
+              <p className="text-muted-foreground text-[13px] leading-relaxed">
+                {t("web.settings.cardOverlay.statusColor.hint")}
+              </p>
+            </div>
+            <Switch
+              id={statusColorId}
+              checked={config.dynamicColor === true}
+              onCheckedChange={(checked) => onChange({ dynamicColor: checked || undefined })}
+            />
+          </div>
+        ) : null}
 
         {def.iconCapable ? (
           <div className="flex items-center justify-between gap-3">

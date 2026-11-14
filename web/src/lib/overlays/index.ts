@@ -4,6 +4,8 @@
 
 export type {
   BadgePart,
+  OverlayCardKind,
+  OverlaySeriesLayout,
   AccentStrategy,
   CardOverlayPrefs,
   OverlayCategory,
@@ -41,6 +43,9 @@ export {
   STYLE_SIZE_MIN,
   supportsOverlayStyles,
   withoutUnlistedImages,
+  layoutPrefsFor,
+  moveInStack,
+  withLayoutEdit,
   requestDownloadBarPercent,
   storedOverlayIds,
 } from "./schema";
@@ -56,6 +61,8 @@ export {
   overlayDataFromWatchlistTitle,
 } from "./extractors";
 export {
+  OVERLAY_SAMPLE_CHOICES,
+  withSampleOverrides,
   OVERLAY_PREVIEW_SAMPLES,
   OVERLAY_PREVIEW_VARIANTS,
   OVERLAY_PREVIEW_WATCH_STATES,
@@ -63,5 +70,9 @@ export {
   SAMPLE_REQUEST_DATA,
   SAMPLE_SHOW_DATA,
 } from "./sample-data";
-export type { OverlayPreviewVariant } from "./sample-data";
+export type {
+  OverlayPreviewVariant,
+  OverlaySampleField,
+  OverlaySampleOverrides,
+} from "./sample-data";
 export { ATTENTION_ACCENT } from "./registry/ribbons";

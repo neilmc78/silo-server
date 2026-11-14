@@ -9,6 +9,7 @@ import type { OverlayData } from "./types";
 // yet, shows the request_status badge and its download bar.
 
 export const SAMPLE_MOVIE_DATA: OverlayData = {
+  kind: "movie",
   resolution: "2160p",
   hdr: "DV HDR10",
   audio: "Atmos",
@@ -38,6 +39,7 @@ export const SAMPLE_MOVIE_DATA: OverlayData = {
 
 export const SAMPLE_SHOW_DATA: OverlayData = {
   ...SAMPLE_MOVIE_DATA,
+  kind: "series",
   resolution: "1080p",
   hdr: "HDR10",
   edition: undefined,
@@ -93,3 +95,31 @@ export const OVERLAY_PREVIEW_WATCH_STATES: Readonly<
   },
   requested: undefined,
 };
+
+// Values the preview's sample picker offers, in the API's own vocabulary, so
+// every bundled logo and status colour can be tried on the sample posters.
+// "" stands for none.
+export const OVERLAY_SAMPLE_CHOICES = {
+  resolution: ["2160p", "1080p", "720p", "480p"],
+  hdr: ["DV HDR10", "DV", "HDR10+", "HDR10", "HDR", "HLG", ""],
+  audio: ["Atmos", "TrueHD", "DTS-HD", "DTS", "EAC3", "AC3", "AAC", "FLAC"],
+  audio_channels: ["7.1", "5.1", "Stereo"],
+  edition: ["Extended", "IMAX", "Director's Cut", ""],
+  show_status: ["returning", "ended", "cancelled", "upcoming"],
+} as const satisfies Record<string, readonly string[]>;
+
+export type OverlaySampleField = keyof typeof OVERLAY_SAMPLE_CHOICES;
+export type OverlaySampleOverrides = Partial<Record<OverlaySampleField, string>>;
+
+/** A sample with the picker's choices applied; titles outside the library keep theirs. */
+export function withSampleOverrides(
+  data: OverlayData,
+  overrides: OverlaySampleOverrides,
+): OverlayData {
+  if (data === SAMPLE_REQUEST_DATA) return data;
+  const next = { ...data };
+  for (const [field, value] of Object.entries(overrides) as [OverlaySampleField, string][]) {
+    next[field] = value === "" ? undefined : value;
+  }
+  return next;
+}

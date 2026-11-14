@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildDefaultPrefs,
+  layoutPrefsFor,
+  moveInStack,
+  orderedOverlaysForPosition,
   overlayPrefsForServer,
   parseOverlayPrefs,
   serializeOverlayPrefs,
+  withLayoutEdit,
   withoutUnlistedImages,
 } from "./schema";
 
@@ -119,5 +124,56 @@ describe("withoutUnlistedImages", () => {
     expect(rendered.items.resolution.valueImages).toEqual({ "2160p": ref("bb") });
     // Nothing to drop returns the same document, so memoized cards keep it.
     expect(withoutUnlistedImages(rendered, new Set([ref("bb")]))).toBe(rendered);
+  });
+});
+
+describe("series layout", () => {
+  it("round-trips a series layout and its colour-by-status flag", () => {
+    const stored = {
+      version: 2,
+      preset: "classic",
+      order: [],
+      items: { resolution: { enabled: true, position: "top-left" } },
+      series: {
+        order: ["show_status"],
+        items: {
+          resolution: { enabled: false, position: "top-left" },
+          show_status: { enabled: true, position: "bottom-center", dynamicColor: true },
+        },
+      },
+    };
+    const prefs = parseOverlayPrefs(stored);
+    expect(prefs.series?.items.show_status).toEqual({
+      enabled: true,
+      position: "bottom-center",
+      dynamicColor: true,
+    });
+    expect(parseOverlayPrefs(JSON.parse(serializeOverlayPrefs(prefs)))).toEqual(prefs);
+    expect(layoutPrefsFor(prefs, "series").items.resolution.enabled).toBe(false);
+    expect(layoutPrefsFor(prefs, "movie").items.resolution.enabled).toBe(true);
+  });
+
+  it("writes an edit to the layout being edited and the look to both", () => {
+    const base = buildDefaultPrefs();
+    const prefs = { ...base, series: { order: [], items: { ...base.items } } };
+    const view = layoutPrefsFor(prefs, "series");
+    const edited = withLayoutEdit(prefs, "series", {
+      ...view,
+      preset: "pill",
+      items: { ...view.items, year: { enabled: true, position: "top-left" } },
+    });
+    expect(edited.preset).toBe("pill");
+    expect(edited.series?.items.year.enabled).toBe(true);
+    expect(edited.items.year.enabled).toBe(base.items.year.enabled);
+  });
+});
+
+describe("moveInStack", () => {
+  it("swaps a badge with its neighbour in the same place only", () => {
+    const prefs = buildDefaultPrefs(); // resolution, hdr and audio share top-left
+    const ids = () => orderedOverlaysForPosition(prefs, "top-left").map((def) => def.id);
+    const before = ids();
+    prefs.order = moveInStack(prefs, before[1]!, -1);
+    expect(ids()).toEqual([before[1], before[0], ...before.slice(2)]);
   });
 });
