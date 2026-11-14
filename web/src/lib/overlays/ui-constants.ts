@@ -13,6 +13,12 @@ export const POSITION_OPTIONS: { value: OverlayPosition; label: string }[] = [
     },
   },
   {
+    value: "top-center",
+    get label() {
+      return t("web.settings.overlays.position.topCenter");
+    },
+  },
+  {
     value: "left-edge",
     get label() {
       return t("web.settings.overlays.position.leftEdge");
@@ -28,6 +34,12 @@ export const POSITION_OPTIONS: { value: OverlayPosition; label: string }[] = [
     value: "bottom-left",
     get label() {
       return t("web.settings.overlays.position.bottomLeft");
+    },
+  },
+  {
+    value: "bottom-center",
+    get label() {
+      return t("web.settings.overlays.position.bottomCenter");
     },
   },
   {
