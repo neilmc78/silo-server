@@ -350,6 +350,11 @@ function Badge({ badge, preset, scalingMode, rail }: BadgeProps) {
         className={`inline-flex max-w-full min-w-0 items-center gap-1 ${preset.badgeClass}`}
         style={{ ...preset.badgeStyle(badge.accentColor), ...geometry }}
       >
+        {/* A text strut: a logo-only badge stands as tall as a text badge, so
+            logos beside each other sit level. Its negative margin cancels the gap. */}
+        <span aria-hidden="true" data-overlay-strut="" className="-me-1 w-0 overflow-hidden">
+          {"\u200b"}
+        </span>
         {badge.parts.map((part, index) =>
           part.kind === "logo" ? (
             <img
