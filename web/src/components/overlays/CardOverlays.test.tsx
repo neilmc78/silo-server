@@ -90,7 +90,7 @@ describe("CardOverlays", () => {
     const prefs = buildDefaultPrefs(); // resolution, hdr, audio all top-left
     prefs.order = ["audio", "hdr", "resolution"];
     const { container } = render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />);
-    const topLeftStack = container.querySelector("div.top-2 > div.items-start");
+    const topLeftStack = container.querySelector("div.top-2 [data-fit-row] > div.items-start");
     const texts = Array.from(topLeftStack?.querySelectorAll("span.inline-flex") ?? []).map(
       (n) => n.textContent,
     );
@@ -118,6 +118,94 @@ describe("CardOverlays", () => {
     const badge = container.querySelector("span.inline-flex");
     expect(badge?.textContent).toBe("DV HDR10");
     expect(badge?.querySelector("svg")).toBeTruthy();
+  });
+
+  it("draws bundled logos and a coloured score once the badge's icon is turned on", () => {
+    const prefs = prefsWithOnly("rating_imdb");
+    prefs.items.hdr = { ...prefs.items.hdr, enabled: true, showIcon: true };
+    prefs.items.rating_imdb = { ...prefs.items.rating_imdb, showIcon: true };
+    const { container } = render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />);
+    const hdr = container.querySelector("[data-overlay-id='hdr']");
+    expect(hdr?.querySelectorAll("img")).toHaveLength(1);
+    expect(hdr?.getAttribute("aria-label")).toBe("DV HDR10");
+    const imdb = container.querySelector("[data-overlay-id='rating_imdb']");
+    expect(imdb?.querySelector("img")).toBeTruthy();
+    expect(imdb?.textContent).toBe("8.7");
+  });
+
+  it.each(["top-center", "bottom-center"] as const)("draws a %s badge centred", (position) => {
+    const prefs = prefsWithOnly("resolution");
+    prefs.items.resolution = { ...prefs.items.resolution, position };
+    const { container } = render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />);
+    expect(container.querySelector(`[data-overlay-edge='${position}']`)?.textContent).toBe("4K");
+  });
+
+  it("combines audio and channels and hides the two badges it repeats", () => {
+    const prefs = buildDefaultPrefs();
+    prefs.items.audio_channels = { ...prefs.items.audio_channels, enabled: true };
+    prefs.items.audio_codec_channels = { ...prefs.items.audio_codec_channels, enabled: true };
+    const texts = badgeTexts(
+      render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />).container,
+    );
+    expect(texts).toContain("Atmos 7.1");
+    expect(texts).not.toContain("Atmos");
+    expect(texts).not.toContain("7.1");
+  });
+
+  it("colours a show by its status only when the badge asks to", () => {
+    const data = { ...SAMPLE_MOVIE_DATA, show_status: "ended" };
+    const colour = (dynamicColor: boolean) => {
+      const prefs = prefsWithOnly("show_status", "vibrant");
+      prefs.items.show_status = {
+        ...prefs.items.show_status,
+        accentColor: "#3b82f6",
+        dynamicColor,
+      };
+      const { container, unmount } = render(<CardOverlays data={data} prefs={prefs} />);
+      const style = container
+        .querySelector<HTMLElement>("[data-overlay-id='show_status']")
+        ?.getAttribute("style");
+      unmount();
+      return style ?? "";
+    };
+    expect(colour(true)).toMatch(/rgb\(239, 75, 75\)|#ef4b4b/i);
+    expect(colour(false)).not.toMatch(/rgb\(239, 75, 75\)|#ef4b4b/i);
+  });
+
+  it("draws a series card with the series layout and a movie with the shared one", () => {
+    const prefs = prefsWithOnly("resolution");
+    prefs.series = {
+      order: [],
+      items: { ...prefs.items, resolution: { enabled: false, position: "top-left" } },
+    };
+    const shown = (kind: "movie" | "series") => {
+      const { container, unmount } = render(
+        <CardOverlays data={{ ...SAMPLE_MOVIE_DATA, kind }} prefs={prefs} />,
+      );
+      const texts = badgeTexts(container);
+      unmount();
+      return texts;
+    };
+    expect(shown("movie")).toEqual(["4K"]);
+    expect(shown("series")).toEqual([]);
+  });
+
+  it.each([
+    { natural: 300, zoom: "0.6" }, // far too wide: stops at the floor
+    { natural: 125, zoom: "0.784" },
+    { natural: 90, zoom: "" }, // fits: untouched
+  ])("fits a crowded edge as one unit ($natural px in 100 px)", ({ natural, zoom }) => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const width = this.style.width === "max-content" ? natural : 100;
+      return { width, height: 10 } as DOMRect;
+    });
+    const { container } = render(
+      <CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefsWithOnly("resolution")} />,
+    );
+    const row = container.querySelector<HTMLElement>("[data-fit-row]");
+    expect(row?.style.zoom).toBe(zoom);
   });
 
   it("renders HLG as a plain text label without an HDR wordmark", () => {
@@ -156,7 +244,8 @@ describe("CardOverlays", () => {
     expect(layer?.style.getPropertyValue("--card-overlay-edge-inset")).toBe("");
 
     unmount();
-    expect(disconnect).toHaveBeenCalledOnce();
+    // The poster scale and the edge fit each stop observing.
+    expect(disconnect).toHaveBeenCalledTimes(2);
   });
 
   // jsdom resolves no CSS variables, so this reads where the radius comes from.
@@ -193,7 +282,8 @@ describe("CardOverlays", () => {
     expect(layer?.style.getPropertyValue("--card-overlay-border-left-width")).toBe("1px");
 
     unmount();
-    expect(disconnect).toHaveBeenCalledOnce();
+    // The poster scale and the edge fit each stop observing.
+    expect(disconnect).toHaveBeenCalledTimes(2);
   });
 
   it.each([
