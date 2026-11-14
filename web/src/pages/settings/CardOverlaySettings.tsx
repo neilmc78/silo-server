@@ -12,7 +12,7 @@ import { useOverlayPrefs } from "@/hooks/useOverlayPrefs";
 import { useShownRatingSources } from "@/hooks/queries/ratingsCapability";
 import { useT, type MessageKey } from "@/i18n";
 import type { EnabledCardQuickActionMode } from "@/lib/cardQuickActions";
-import { isOverlayOffered } from "@/lib/overlays";
+import { isOverlayOffered, type OverlayCardKind } from "@/lib/overlays";
 
 import { ChoiceButtons } from "@/components/settings/ChoiceButtons";
 import { ResetButton } from "./ResetButton";
@@ -53,6 +53,7 @@ export function CardOverlaySettings({ onShortcutsPicked }: { onShortcutsPicked?:
     isOverlaySupported,
   } = useOverlayPrefs();
   const [confirmBadgeResetOpen, setConfirmBadgeResetOpen] = useState(false);
+  const [layoutKind, setLayoutKind] = useState<OverlayCardKind>("movie");
   const badgesSwitchId = useId();
 
   // Removing the profile's stored values is what puts it back on the server
@@ -160,6 +161,8 @@ export function CardOverlaySettings({ onShortcutsPicked }: { onShortcutsPicked?:
           shortcutsOn={quickActionsEnabled}
           images={images}
           supportsStyles={supportsStyles}
+          kind={layoutKind}
+          onKindChange={setLayoutKind}
         />
       </SettingsGroup>
 

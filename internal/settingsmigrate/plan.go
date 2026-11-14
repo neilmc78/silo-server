@@ -1026,7 +1026,7 @@ func snapToStep(def *settingscontract.Definition, value float64) float64 {
 // stale id left in place would quarantine the user's whole badge config.
 var cardOverlayIDs = map[string]bool{
 	"resolution": true, "hdr": true, "resolution_hdr": true, "resolution_hdr_audio": true,
-	"audio": true, "audio_channels": true, "video_codec": true,
+	"audio": true, "audio_channels": true, "audio_codec_channels": true, "video_codec": true,
 	"container": true, "aspect_ratio": true, "release_type": true,
 	"edition": true, "multi_audio": true, "multi_sub": true,
 	"rating_imdb": true, "rating_tmdb": true, "rating_rt": true,

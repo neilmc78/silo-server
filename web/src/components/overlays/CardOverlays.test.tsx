@@ -140,6 +140,56 @@ describe("CardOverlays", () => {
     expect(container.querySelector(`[data-overlay-edge='${position}']`)?.textContent).toBe("4K");
   });
 
+  it("combines audio and channels and hides the two badges it repeats", () => {
+    const prefs = buildDefaultPrefs();
+    prefs.items.audio_channels = { ...prefs.items.audio_channels, enabled: true };
+    prefs.items.audio_codec_channels = { ...prefs.items.audio_codec_channels, enabled: true };
+    const texts = badgeTexts(
+      render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />).container,
+    );
+    expect(texts).toContain("Atmos 7.1");
+    expect(texts).not.toContain("Atmos");
+    expect(texts).not.toContain("7.1");
+  });
+
+  it("colours a show by its status only when the badge asks to", () => {
+    const data = { ...SAMPLE_MOVIE_DATA, show_status: "ended" };
+    const colour = (dynamicColor: boolean) => {
+      const prefs = prefsWithOnly("show_status", "vibrant");
+      prefs.items.show_status = {
+        ...prefs.items.show_status,
+        accentColor: "#3b82f6",
+        dynamicColor,
+      };
+      const { container, unmount } = render(<CardOverlays data={data} prefs={prefs} />);
+      const style = container
+        .querySelector<HTMLElement>("[data-overlay-id='show_status']")
+        ?.getAttribute("style");
+      unmount();
+      return style ?? "";
+    };
+    expect(colour(true)).toMatch(/rgb\(239, 75, 75\)|#ef4b4b/i);
+    expect(colour(false)).not.toMatch(/rgb\(239, 75, 75\)|#ef4b4b/i);
+  });
+
+  it("draws a series card with the series layout and a movie with the shared one", () => {
+    const prefs = prefsWithOnly("resolution");
+    prefs.series = {
+      order: [],
+      items: { ...prefs.items, resolution: { enabled: false, position: "top-left" } },
+    };
+    const shown = (kind: "movie" | "series") => {
+      const { container, unmount } = render(
+        <CardOverlays data={{ ...SAMPLE_MOVIE_DATA, kind }} prefs={prefs} />,
+      );
+      const texts = badgeTexts(container);
+      unmount();
+      return texts;
+    };
+    expect(shown("movie")).toEqual(["4K"]);
+    expect(shown("series")).toEqual([]);
+  });
+
   it("renders HLG as a plain text label without an HDR wordmark", () => {
     const { container } = render(
       <CardOverlays

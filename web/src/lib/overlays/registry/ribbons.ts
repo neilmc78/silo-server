@@ -50,6 +50,14 @@ function formatShowStatus(value: string | undefined): string | null {
   return Object.hasOwn(SHOW_STATUS_LABELS, key) ? SHOW_STATUS_LABELS[key as ShowStatusKey]() : key;
 }
 
+// Colours for a show's state when its badge colours by status.
+const SHOW_STATUS_ACCENT: Record<string, string> = {
+  Returning: "#21c46b",
+  Ended: "#ef4b4b",
+  Cancelled: "#ef4b4b",
+  Upcoming: "#f5c518",
+};
+
 export const RIBBON_OVERLAYS: readonly OverlayDef[] = [
   {
     id: "show_status",
@@ -70,6 +78,7 @@ export const RIBBON_OVERLAYS: readonly OverlayDef[] = [
     getValue: (d) => formatShowStatus(d.show_status),
     getValueKey: (d) => showStatusKey(d.show_status),
     valueKeySuggestions: ["Returning", "Ended", "Cancelled", "Upcoming"],
+    statusAccent: (d) => SHOW_STATUS_ACCENT[showStatusKey(d.show_status) ?? ""] ?? null,
   },
   {
     id: "request_status",

@@ -8,6 +8,7 @@ import {
   type OverlayPreviewVariant,
 } from "@/components/overlays/OverlayPreviewCard";
 import { OverlayPreviewVariantToggle } from "@/components/overlays/OverlayPreviewVariantToggle";
+import { OverlaySampleControls } from "@/components/overlays/OverlaySampleControls";
 import { BadgePills } from "@/components/overlays/settings/BadgePills";
 import { OverlayImageLibrary } from "@/components/overlays/settings/OverlayImageLibrary";
 import { OverlayLookControls } from "@/components/overlays/settings/OverlayLookControls";
@@ -25,6 +26,8 @@ import {
   parseOverlayPrefs,
   serializeOverlayPrefs,
   type CardOverlayPrefs,
+  type OverlayCardKind,
+  type OverlaySampleOverrides,
 } from "@/lib/overlays";
 import { adminDefaultServerKey } from "@/lib/settingsAdminDefaults";
 import { SETTING_DEFINITIONS, SETTING_KEYS } from "@/lib/settingsContract";
@@ -99,6 +102,13 @@ export default function AppearanceSettings() {
   // Which sample the badge preview stands in for. View state only — show-only
   // overlays (network, show status) are otherwise impossible to see here.
   const [previewVariant, setPreviewVariant] = useState<OverlayPreviewVariant>("movie");
+  const [layoutKind, setLayoutKind] = useState<OverlayCardKind>("movie");
+  const [sampleOverrides, setSampleOverrides] = useState<OverlaySampleOverrides>({});
+  // The preview shows the sample whose layout is being edited.
+  const pickLayoutKind = (kind: OverlayCardKind) => {
+    setLayoutKind(kind);
+    setPreviewVariant(kind === "series" ? "show" : "movie");
+  };
 
   const accentColor = form.getValue(ACCENT_KEY);
   const customAccentActive =
@@ -309,13 +319,20 @@ export default function AppearanceSettings() {
                 <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                   {t("web.admin.settings.appearance.overlays.preview")}
                 </span>
-                <OverlayPreviewVariantToggle value={previewVariant} onChange={setPreviewVariant} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <OverlayPreviewVariantToggle
+                    value={previewVariant}
+                    onChange={setPreviewVariant}
+                  />
+                  <OverlaySampleControls value={sampleOverrides} onChange={setSampleOverrides} />
+                </div>
               </div>
               <div className="mt-3 flex justify-center pb-1">
                 <OverlayPreviewCard
                   prefs={overlayPrefs}
                   posterSize={posterSize}
                   variant={previewVariant}
+                  sampleOverrides={sampleOverrides}
                 />
               </div>
             </div>
@@ -328,6 +345,8 @@ export default function AppearanceSettings() {
             shortcutsOn={false}
             images={images}
             supportsStyles={supportsStyles}
+            kind={layoutKind}
+            onKindChange={pickLayoutKind}
           />
         </FieldGroup>
 

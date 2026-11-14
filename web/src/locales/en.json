@@ -124453,10 +124453,76 @@
       "value": "Default"
     }
   ],
+  "web.settings.cardOverlay.layout.editing": [
+    {
+      "type": 0,
+      "value": "Editing badges for"
+    }
+  ],
+  "web.settings.cardOverlay.layout.movies": [
+    {
+      "type": 0,
+      "value": "Movies"
+    }
+  ],
+  "web.settings.cardOverlay.layout.separate": [
+    {
+      "type": 0,
+      "value": "Separate layout for series"
+    }
+  ],
+  "web.settings.cardOverlay.layout.separateHint": [
+    {
+      "type": 0,
+      "value": "Series, their seasons and episodes get their own badges and positions. The style stays shared."
+    }
+  ],
+  "web.settings.cardOverlay.layout.series": [
+    {
+      "type": 0,
+      "value": "Series"
+    }
+  ],
   "web.settings.cardOverlay.noneOn": [
     {
       "type": 0,
       "value": "None on"
+    }
+  ],
+  "web.settings.cardOverlay.order.down": [
+    {
+      "type": 0,
+      "value": "Move down"
+    }
+  ],
+  "web.settings.cardOverlay.order.place": [
+    {
+      "type": 1,
+      "value": "place"
+    },
+    {
+      "type": 0,
+      "value": " of "
+    },
+    {
+      "type": 1,
+      "value": "total"
+    },
+    {
+      "type": 0,
+      "value": " in this place, top first"
+    }
+  ],
+  "web.settings.cardOverlay.order.title": [
+    {
+      "type": 0,
+      "value": "Order"
+    }
+  ],
+  "web.settings.cardOverlay.order.up": [
+    {
+      "type": 0,
+      "value": "Move up"
     }
   ],
   "web.settings.cardOverlay.position": [
@@ -124511,6 +124577,36 @@
     {
       "type": 0,
       "value": "Couldn't reset shortcuts"
+    }
+  ],
+  "web.settings.cardOverlay.sample.asSample": [
+    {
+      "type": 0,
+      "value": "As sample"
+    }
+  ],
+  "web.settings.cardOverlay.sample.button": [
+    {
+      "type": 0,
+      "value": "Try values"
+    }
+  ],
+  "web.settings.cardOverlay.sample.hint": [
+    {
+      "type": 0,
+      "value": "Swap the sample posters' details to see each logo and colour. Nothing here is saved."
+    }
+  ],
+  "web.settings.cardOverlay.sample.none": [
+    {
+      "type": 0,
+      "value": "None"
+    }
+  ],
+  "web.settings.cardOverlay.sample.reset": [
+    {
+      "type": 0,
+      "value": "Back to the sample"
     }
   ],
   "web.settings.cardOverlay.shortcutBoth": [
@@ -124589,6 +124685,18 @@
     {
       "type": 0,
       "value": " on"
+    }
+  ],
+  "web.settings.cardOverlay.statusColor.hint": [
+    {
+      "type": 0,
+      "value": "Green while a show continues, red once it ends or is cancelled, amber before it starts."
+    }
+  ],
+  "web.settings.cardOverlay.statusColor.label": [
+    {
+      "type": 0,
+      "value": "Colour by status"
     }
   ],
   "web.settings.cardOverlay.style": [
@@ -129253,6 +129361,18 @@
     {
       "type": 0,
       "value": "Audio Channels"
+    }
+  ],
+  "web.settings.overlays.badge.audioCodecChannels.description": [
+    {
+      "type": 0,
+      "value": "Audio codec and channel layout on one badge, such as Atmos 7.1. Hides the separate Audio Codec and Audio Channels badges."
+    }
+  ],
+  "web.settings.overlays.badge.audioCodecChannels.label": [
+    {
+      "type": 0,
+      "value": "Audio + Channels"
     }
   ],
   "web.settings.overlays.badge.container.description": [

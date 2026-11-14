@@ -3,6 +3,7 @@ import { OVERLAY_MAP, OVERLAY_REGISTRY } from "./registry";
 import { OVERLAY_POSITIONS } from "./types";
 import type {
   CardOverlayPrefs,
+  OverlayCardKind,
   OverlayData,
   OverlayFontWeight,
   OverlayId,
@@ -144,6 +145,7 @@ function applyItemPatch(
   if (isOverlayImageRef(patch.image)) item.image = patch.image;
   const valueImages = parseValueImages(patch.valueImages);
   if (valueImages) item.valueImages = valueImages;
+  if (patch.dynamicColor === true) item.dynamicColor = true;
   return item;
 }
 
@@ -187,7 +189,46 @@ function parseV2(parsed: Record<string, unknown>): CardOverlayPrefs {
   };
   const style = parseOverlayStyle(parsed.style);
   if (style) prefs.style = style;
+  const series = parsed.series;
+  if (series && typeof series === "object" && !Array.isArray(series)) {
+    const raw = series as Record<string, unknown>;
+    prefs.series = {
+      order: Array.isArray(raw.order) ? (raw.order as unknown[]).filter(isKnownOverlayId) : [],
+      items: buildItems(
+        raw.items && typeof raw.items === "object"
+          ? (raw.items as Record<string, unknown>)
+          : undefined,
+      ),
+    };
+  }
   return prefs;
+}
+
+// The layout a card of this kind draws: series cards use the series layout
+// when the document has one, everything else the shared one. The look
+// (preset and style) is the same either way.
+export function layoutPrefsFor(
+  prefs: CardOverlayPrefs,
+  kind: OverlayCardKind | undefined,
+): CardOverlayPrefs {
+  if (kind !== "series" || !prefs.series) return prefs;
+  return { ...prefs, order: prefs.series.order, items: prefs.series.items };
+}
+
+// Writes back an edit made to layoutPrefsFor(prefs, kind): layout changes
+// land in that kind's layout, look changes in the shared fields.
+export function withLayoutEdit(
+  prefs: CardOverlayPrefs,
+  kind: OverlayCardKind,
+  edited: CardOverlayPrefs,
+): CardOverlayPrefs {
+  if (kind !== "series" || !prefs.series) return edited;
+  return {
+    ...edited,
+    order: prefs.order,
+    items: prefs.items,
+    series: { order: edited.order, items: edited.items },
+  };
 }
 
 // Accepts the canonical settings-contract value (an object or null), the
@@ -252,9 +293,25 @@ export function withoutUnlistedImages(
   prefs: CardOverlayPrefs,
   listed: ReadonlySet<string>,
 ): CardOverlayPrefs {
+  const items = itemsWithoutUnlistedImages(prefs.items, listed);
+  const seriesItems = prefs.series
+    ? itemsWithoutUnlistedImages(prefs.series.items, listed)
+    : undefined;
+  if (items === prefs.items && seriesItems === prefs.series?.items) return prefs;
+  return {
+    ...prefs,
+    items,
+    ...(prefs.series && seriesItems ? { series: { ...prefs.series, items: seriesItems } } : {}),
+  };
+}
+
+function itemsWithoutUnlistedImages(
+  source: CardOverlayPrefs["items"],
+  listed: ReadonlySet<string>,
+): CardOverlayPrefs["items"] {
   let changed = false;
-  const items = { ...prefs.items };
-  for (const [id, item] of Object.entries(prefs.items) as [OverlayId, OverlayItemConfig][]) {
+  const items = { ...source };
+  for (const [id, item] of Object.entries(source) as [OverlayId, OverlayItemConfig][]) {
     const valueImages = Object.entries(item.valueImages ?? {});
     const keptValueImages = valueImages.filter(([, ref]) => listed.has(ref));
     const dropImage = item.image !== undefined && !listed.has(item.image);
@@ -267,7 +324,7 @@ export function withoutUnlistedImages(
     };
     changed = true;
   }
-  return changed ? { ...prefs, items } : prefs;
+  return changed ? items : source;
 }
 
 // Whether the server accepts the revision-25 fields: edge positions, the
@@ -296,18 +353,33 @@ export function overlayPrefsForServer(
   support: OverlayServerSupport,
 ): CardOverlayPrefs {
   const styles = supportsOverlayStyles(support);
-  const items = Object.fromEntries(
-    Object.entries(prefs.items)
-      .filter(([id]) => isOverlaySupportedBy(id as OverlayId, support))
-      .map(([id, item]) => {
-        if (styles) return [id, item];
-        const { image: _image, valueImages: _valueImages, ...rest } = item;
-        return [id, { ...rest, position: LEGACY_POSITION[item.position] ?? item.position }];
-      }),
-  ) as CardOverlayPrefs["items"];
+  const forServer = (source: CardOverlayPrefs["items"]) =>
+    Object.fromEntries(
+      Object.entries(source)
+        .filter(([id]) => isOverlaySupportedBy(id as OverlayId, support))
+        .map(([id, item]) => {
+          if (styles) return [id, item];
+          const {
+            image: _image,
+            valueImages: _valueImages,
+            dynamicColor: _dynamic,
+            ...rest
+          } = item;
+          return [id, { ...rest, position: LEGACY_POSITION[item.position] ?? item.position }];
+        }),
+    ) as CardOverlayPrefs["items"];
+  const items = forServer(prefs.items);
   const order = prefs.order.filter((id) => isOverlaySupportedBy(id, support));
-  if (styles) return { ...prefs, order, items };
-  const { style: _style, ...rest } = prefs;
+  if (styles) {
+    if (!prefs.series) return { ...prefs, order, items };
+    const series = {
+      order: prefs.series.order.filter((id) => isOverlaySupportedBy(id, support)),
+      items: forServer(prefs.series.items),
+    };
+    return { ...prefs, order, items, series };
+  }
+  // A server this old knows no series layout either.
+  const { style: _style, series: _series, ...rest } = prefs;
   const preset = prefs.preset === "plate" || prefs.preset === "band" ? "classic" : prefs.preset;
   return { ...rest, preset, order, items };
 }
@@ -322,6 +394,7 @@ export function serializeOverlayPrefs(prefs: CardOverlayPrefs): string {
 const COMBINED_BADGES: readonly (readonly [OverlayId, readonly OverlayId[]])[] = [
   ["resolution_hdr_audio", ["resolution", "hdr", "audio", "resolution_hdr"]],
   ["resolution_hdr", ["resolution", "hdr"]],
+  ["audio_codec_channels", ["audio", "audio_channels"]],
 ];
 
 // The enabled combined badge that hides `id`, or null when `id` shows. The
@@ -352,6 +425,27 @@ export function orderedOverlaysForPosition(prefs: CardOverlayPrefs, position: Ov
   return [...enabled].sort((a, b) => (orderIndex.get(a.id) ?? 999) - (orderIndex.get(b.id) ?? 999));
 }
 
+// The order after moving `id` one place up (-1) or down (+1) among the
+// badges that share its position. Every other badge keeps its place, and an
+// order that ranked nothing yet starts from the registry's.
+export function moveInStack(prefs: CardOverlayPrefs, id: OverlayId, delta: -1 | 1): OverlayId[] {
+  const position = prefs.items[id]?.position;
+  if (!position) return prefs.order;
+  const stack = orderedOverlaysForPosition(prefs, position).map((def) => def.id);
+  const from = stack.indexOf(id);
+  const to = from + delta;
+  if (from === -1 || to < 0 || to >= stack.length) return prefs.order;
+  const moved = [...stack];
+  [moved[from], moved[to]] = [moved[to]!, moved[from]!];
+  const full = [
+    ...prefs.order,
+    ...OVERLAY_REGISTRY.map((def) => def.id).filter((other) => !prefs.order.includes(other)),
+  ];
+  const inStack = new Set(stack);
+  let next = 0;
+  return full.map((other) => (inStack.has(other) ? moved[next++]! : other));
+}
+
 // The download bar a card draws while a watchlist title downloads, as a
 // percentage, or null for no bar. The bar belongs to the request_status
 // badge: it shows only while overlays are on (prefs is null when they are
@@ -360,7 +454,8 @@ export function requestDownloadBarPercent(
   data: OverlayData,
   prefs: CardOverlayPrefs | null | undefined,
 ): number | null {
-  if (!prefs?.items.request_status?.enabled || !data.request_status) return null;
+  const layout = prefs ? layoutPrefsFor(prefs, data.kind) : null;
+  if (!layout?.items.request_status?.enabled || !data.request_status) return null;
   const percent = data.request_download_percent;
   return percent == null ? null : Math.min(100, Math.max(0, percent));
 }
