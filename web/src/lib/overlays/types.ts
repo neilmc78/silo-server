@@ -1,11 +1,13 @@
 import type { CSSProperties } from "react";
 
-// Position on the poster card where a badge group is anchored: three corners
-// and a rail centred on each side edge. The top-right corner belongs to the
+// Position on the poster card where a badge group is anchored: three corners,
+// the middle of the top and bottom edges, and a rail centred on each side edge. The top-right corner belongs to the
 // watch-status indicator (CardWatchStatus), so no badge is placed there.
 export const OVERLAY_POSITIONS = [
   "top-left",
+  "top-center",
   "bottom-left",
+  "bottom-center",
   "bottom-right",
   "left-edge",
   "right-edge",
