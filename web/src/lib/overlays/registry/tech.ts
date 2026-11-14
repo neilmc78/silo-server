@@ -1,6 +1,7 @@
 import { compactHdrSuffix, prettyResolution } from "@/lib/mediaFormat";
 import { t } from "@/i18n";
-import type { OverlayDef, OverlayIconId } from "../types";
+import { overlayLogo } from "../logos";
+import type { BadgePart, OverlayDef, OverlayIconId } from "../types";
 
 // Tech overlays — derived from the media file (codec, container, resolution,
 // audio properties). All data flows through OverlaySummary on the backend.
@@ -27,6 +28,44 @@ function videoCodecIcon(value: string | undefined): OverlayIconId | null {
   if (!value) return null;
   if (value === "AV1") return "av1";
   return "film";
+}
+
+// Format logos, keyed by file name under web/src/assets/overlay-logos/formats.
+// A format without a bundled file keeps its text inside the badge.
+const FORMAT_LOGOS: Record<string, string> = {
+  DV: "dolby-vision",
+  "HDR10+": "hdr10plus",
+  HDR10: "hdr",
+  HDR: "hdr",
+  Atmos: "dolby-atmos",
+  TrueHD: "dolby-truehd",
+  "DTS-HD": "dts-hd",
+  EAC3: "dolby-digital-plus",
+  IMAX: "imax",
+};
+
+function formatPart(name: string): BadgePart {
+  const key = FORMAT_LOGOS[name];
+  const src = key ? overlayLogo(`formats/${key}`) : undefined;
+  return src ? { kind: "logo", src, alt: name } : { kind: "text", text: name };
+}
+
+// A dynamic-range value names one or two formats ("DV HDR10"). With Dolby
+// Vision only its logo shows, as the HDR10 base layer is implied.
+function hdrNames(value: string | undefined): string[] {
+  if (!value) return [];
+  const names = value.split(" ").filter(Boolean);
+  return names.includes("DV") ? ["DV"] : names;
+}
+
+// The parts for a run of formats, or null when none has a logo (the badge
+// keeps its label).
+function formatParts(texts: (string | null | undefined)[], formats: string[]): BadgePart[] | null {
+  const parts: BadgePart[] = [
+    ...texts.filter((x): x is string => !!x).map((text) => ({ kind: "text" as const, text })),
+    ...formats.map(formatPart),
+  ];
+  return parts.some((part) => part.kind === "logo") ? parts : null;
 }
 
 export const TECH_OVERLAYS: readonly OverlayDef[] = [
@@ -63,6 +102,7 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     getValueKey: (d) => d.hdr || null,
     valueKeySuggestions: ["DV", "DV HDR10", "DV HDR10+", "HDR10", "HDR10+", "HLG", "HDR"],
     getIcon: (d) => hdrIcon(d.hdr),
+    getParts: (d) => formatParts([], hdrNames(d.hdr)),
   },
   {
     id: "resolution_hdr",
@@ -88,6 +128,7 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     // Only the DV circle mark works next to a combined label; a wordmark
     // (HDR10) would visually duplicate the label's HDR suffix.
     getIcon: (d) => (d.hdr?.includes("DV") ? "dolby-vision" : null),
+    getParts: (d) => formatParts([prettyResolution(d.resolution)], hdrNames(d.hdr)),
     // The resolution and dynamic range as the API returns them, joined by a
     // space: "2160p DV HDR10", or "1080p" without HDR.
     getValueKey: (d) => (d.resolution ? [d.resolution, d.hdr].filter(Boolean).join(" ") : null),
@@ -117,6 +158,11 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     // Same rule as the Resolution + HDR badge: an Atmos or HDR10 wordmark
     // would repeat words already in the label.
     getIcon: (d) => (d.hdr?.includes("DV") ? "dolby-vision" : null),
+    getParts: (d) =>
+      formatParts(
+        [prettyResolution(d.resolution)],
+        [...hdrNames(d.hdr), ...(d.audio ? [d.audio] : [])],
+      ),
     // The API's resolution, dynamic range and audio values joined by a space:
     // "2160p DV HDR10 Atmos", or only the parts the file has.
     getValueKey: (d) => [d.resolution, d.hdr, d.audio].filter(Boolean).join(" ") || null,
@@ -137,6 +183,7 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     getValueKey: (d) => d.audio || null,
     valueKeySuggestions: ["Atmos", "TrueHD", "DTS-HD", "DTS", "EAC3", "AC3", "AAC", "FLAC"],
     getIcon: (d) => audioIcon(d.audio),
+    getParts: (d) => (d.audio ? formatParts([], [d.audio]) : null),
   },
   {
     id: "audio_channels",
@@ -230,7 +277,9 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     },
     defaultPosition: "bottom-left",
     defaultEnabled: false,
-    iconCapable: false,
+    iconCapable: true,
+    // An IMAX edition shows the IMAX logo while the icon setting is on.
+    getParts: (d) => (d.edition && /\bimax\b/i.test(d.edition) ? formatParts([], ["IMAX"]) : null),
     getValue: (d) => d.edition ?? null,
     getValueKey: (d) => d.edition || null,
   },
