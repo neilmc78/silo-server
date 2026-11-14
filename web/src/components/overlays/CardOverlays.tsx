@@ -367,14 +367,15 @@ function BadgeStack({
   rail,
 }: {
   badges: ResolvedBadge[];
-  align: "start" | "end";
+  align: "start" | "center" | "end";
   preset: OverlayPreset;
   scalingMode: ScalingMode;
   rail?: Rail;
 }) {
+  const items = { start: "items-start", center: "items-center", end: "items-end" }[align];
   return (
     <div
-      className={`flex min-w-0 flex-col ${align === "start" ? "items-start" : "items-end"} ${preset.gapClass}`}
+      className={`flex min-w-0 flex-col ${items} ${preset.gapClass}`}
       style={{ gap: overlayLength(preset.stackGap, scalingMode, POSTER_VARS.stackGap) }}
     >
       {badges.map((badge) => (
@@ -543,6 +544,8 @@ export default function CardOverlays({
       .slice(0, limit);
 
   const topLeft = resolve("top-left", MAX_BADGES_PER_CORNER);
+  const topCenter = resolve("top-center", MAX_BADGES_PER_CORNER);
+  const bottomCenter = resolve("bottom-center", MAX_BADGES_PER_CORNER);
   const bottomLeft = resolve("bottom-left", MAX_BADGES_PER_CORNER);
   const bottomRight = resolve("bottom-right", MAX_BADGES_PER_CORNER);
   const leftRail = resolve("left-edge", MAX_BADGES_PER_RAIL);
@@ -624,7 +627,7 @@ export default function CardOverlays({
       data-card-overlays={variant}
       className="@container/card-overlays pointer-events-none absolute inset-0 z-10"
     >
-      {topLeft.length > 0 &&
+      {(topLeft.length > 0 || (band && topCenter.length > 0)) &&
         (band ? (
           <div
             data-overlay-edge="top"
@@ -637,7 +640,11 @@ export default function CardOverlays({
               paddingBottom: `calc(${edgeInset} * 3)`,
             }}
           >
-            <BandMarks badges={topLeft} preset={preset} scalingMode={scalingMode} />
+            <BandMarks
+              badges={[...topLeft, ...topCenter]}
+              preset={preset}
+              scalingMode={scalingMode}
+            />
           </div>
         ) : (
           <div
@@ -678,7 +685,33 @@ export default function CardOverlays({
           />
         </div>
       )}
-      {(bottomLeft.length > 0 || bottomRight.length > 0) &&
+      {!band && topCenter.length > 0 && (
+        <div
+          data-overlay-edge="top-center"
+          className="pointer-events-none absolute left-1/2 z-10 flex max-w-[60%] -translate-x-1/2 justify-center"
+          style={{ top: edgeInset }}
+        >
+          <BadgeStack badges={topCenter} align="center" preset={preset} scalingMode={scalingMode} />
+        </div>
+      )}
+      {!band && bottomCenter.length > 0 && (
+        <div
+          data-overlay-edge="bottom-center"
+          className={cn(
+            "pointer-events-none absolute left-1/2 z-10 flex max-w-[60%] -translate-x-1/2 flex-col-reverse justify-center",
+            hasProgressBar && "mb-2",
+          )}
+          style={{ bottom: edgeInset }}
+        >
+          <BadgeStack
+            badges={bottomCenter}
+            align="center"
+            preset={preset}
+            scalingMode={scalingMode}
+          />
+        </div>
+      )}
+      {(bottomLeft.length > 0 || bottomRight.length > 0 || (band && bottomCenter.length > 0)) &&
         (band ? (
           /* One centred strip for the whole bottom edge, left corner first. */
           <div
@@ -692,7 +725,7 @@ export default function CardOverlays({
             }}
           >
             <BandMarks
-              badges={[...bottomLeft, ...bottomRight]}
+              badges={[...bottomLeft, ...bottomCenter, ...bottomRight]}
               preset={preset}
               scalingMode={scalingMode}
             />

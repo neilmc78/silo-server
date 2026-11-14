@@ -124561,6 +124561,12 @@
       "value": "Show badges on posters"
     }
   ],
+  "web.settings.cardOverlay.showBadgesHint": [
+    {
+      "type": 0,
+      "value": "Set badges up below while this is off. They only show in the preview until you turn it on."
+    }
+  ],
   "web.settings.cardOverlay.showIcon": [
     {
       "type": 0,
@@ -129979,6 +129985,12 @@
       "value": "Semibold"
     }
   ],
+  "web.settings.overlays.position.bottomCenter": [
+    {
+      "type": 0,
+      "value": "Bottom Center"
+    }
+  ],
   "web.settings.overlays.position.bottomLeft": [
     {
       "type": 0,
@@ -130001,6 +130013,12 @@
     {
       "type": 0,
       "value": "Right Edge"
+    }
+  ],
+  "web.settings.overlays.position.topCenter": [
+    {
+      "type": 0,
+      "value": "Top Center"
     }
   ],
   "web.settings.overlays.position.topLeft": [

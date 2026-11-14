@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#03211f"/>
+      <stop offset="0.6" stop-color="#0b4f4a"/>
+      <stop offset="1" stop-color="#2a8f7d"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d7466"/>
+      <stop offset="1" stop-color="#021412"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#bff7ec" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#5fd3bd" stop-opacity="0.15"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.75"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="600" fill="url(#sky)"/>
+  <circle cx="300" cy="120" r="34" fill="#d9fff6" opacity="0.85"/>
+  <g fill="#042a27">
+    <rect x="20" y="250" width="44" height="110"/><rect x="70" y="200" width="36" height="160"/>
+    <rect x="112" y="270" width="30" height="90"/><rect x="250" y="230" width="40" height="130"/>
+    <rect x="296" y="180" width="48" height="180"/><rect x="350" y="260" width="40" height="100"/>
+  </g>
+  <path d="M150 360 L 200 150 L 250 360 Z" fill="url(#glass)" stroke="#c9fff3" stroke-opacity="0.6" stroke-width="1.5"/>
+  <path d="M200 150 L 200 360 M175 255 L 225 255 M163 305 L 237 305" stroke="#c9fff3" stroke-opacity="0.35" stroke-width="1"/>
+  <g fill="#9cf0de" opacity="0.8">
+    <rect x="80" y="220" width="5" height="5"/><rect x="92" y="240" width="5" height="5"/><rect x="80" y="280" width="5" height="5"/>
+    <rect x="306" y="200" width="5" height="5"/><rect x="326" y="230" width="5" height="5"/><rect x="306" y="290" width="5" height="5"/>
+  </g>
+  <rect y="360" width="400" height="240" fill="url(#water)"/>
+  <path d="M150 360 L 200 520 L 250 360 Z" fill="url(#glass)" opacity="0.35"/>
+  <g stroke="#bff7ec" stroke-opacity="0.35" stroke-linecap="round">
+    <line x1="40" y1="390" x2="120" y2="390" stroke-width="2"/>
+    <line x1="270" y1="400" x2="370" y2="400" stroke-width="2"/>
+    <line x1="80" y1="430" x2="150" y2="430" stroke-width="1.5"/>
+  </g>
+  <path d="M60 372 L 130 372 L 120 384 L 70 384 Z" fill="#021412"/>
+  <path d="M95 372 L 95 330 L 118 368 Z" fill="#021412"/>
+  <rect width="400" height="600" fill="url(#fade)"/>
+  <text x="200" y="500" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="300" font-size="40" letter-spacing="10" fill="#e6fffa">GLASS</text>
+  <text x="200" y="542" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="30" letter-spacing="12" fill="#e6fffa">HARBOR</text>
+</svg>
