@@ -23,45 +23,66 @@
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/overlayId" }
     },
-    "items": {
+    "items": { "$ref": "#/$defs/items" },
+    "series": {
+      "description": "Badge layout for series cards (and their seasons and episodes) when it differs from movies'. Absent means series use order and items above. The preset and style stay shared.",
       "type": "object",
-      "propertyNames": { "$ref": "#/$defs/overlayId" },
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["enabled", "position"],
-        "properties": {
-          "enabled": { "type": "boolean" },
-          "position": { "$ref": "#/$defs/position" },
-          "accentColor": {
-            "description": "Hex colour. Absent means the overlay's own default accent.",
-            "type": "string",
-            "pattern": "^#[0-9a-fA-F]{6}$"
-          },
-          "showIcon": {
-            "description": "Absent means inherit from the preset.",
-            "type": "boolean"
-          },
-          "image": {
-            "description": "Uploaded image drawn in place of the badge's icon, beside its label. Absent means the built-in icon.",
-            "$ref": "#/$defs/imageRef"
-          },
-          "valueImages": {
-            "description": "Uploaded images that replace the whole badge when its value key matches, for example {\"4K\": ref}. Keys are the value keys docs/architecture/card-overlays.md lists per badge.",
-            "type": "object",
-            "maxProperties": 32,
-            "propertyNames": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 64
-            },
-            "additionalProperties": { "$ref": "#/$defs/imageRef" }
-          }
-        }
+      "additionalProperties": false,
+      "required": ["order", "items"],
+      "properties": {
+        "order": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/overlayId" }
+        },
+        "items": { "$ref": "#/$defs/items" }
       }
     }
   },
   "$defs": {
+    "items": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/overlayId" },
+      "additionalProperties": { "$ref": "#/$defs/item" }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "position"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "position": { "$ref": "#/$defs/position" },
+        "accentColor": {
+          "description": "Hex colour. Absent means the overlay's own default accent.",
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "dynamicColor": {
+          "description": "Colour the badge by its value, such as red for an ended show, in place of its accent. Absent means off.",
+          "type": "boolean"
+        },
+        "showIcon": {
+          "description": "Absent means inherit from the preset.",
+          "type": "boolean"
+        },
+        "image": {
+          "description": "Uploaded image drawn in place of the badge's icon, beside its label. Absent means the built-in icon.",
+          "$ref": "#/$defs/imageRef"
+        },
+        "valueImages": {
+          "description": "Uploaded images that replace the whole badge when its value key matches, for example {\"4K\": ref}. Keys are the value keys docs/architecture/card-overlays.md lists per badge.",
+          "type": "object",
+          "maxProperties": 32,
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "additionalProperties": { "$ref": "#/$defs/imageRef" }
+        }
+      }
+    },
     "overlayId": {
       "type": "string",
       "enum": [
@@ -71,6 +92,7 @@
         "resolution_hdr_audio",
         "audio",
         "audio_channels",
+        "audio_codec_channels",
         "video_codec",
         "container",
         "aspect_ratio",
