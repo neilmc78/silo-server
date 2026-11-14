@@ -120,6 +120,26 @@ describe("CardOverlays", () => {
     expect(badge?.querySelector("svg")).toBeTruthy();
   });
 
+  it("draws bundled logos and a coloured score once the badge's icon is turned on", () => {
+    const prefs = prefsWithOnly("rating_imdb");
+    prefs.items.hdr = { ...prefs.items.hdr, enabled: true, showIcon: true };
+    prefs.items.rating_imdb = { ...prefs.items.rating_imdb, showIcon: true };
+    const { container } = render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />);
+    const hdr = container.querySelector("[data-overlay-id='hdr']");
+    expect(hdr?.querySelectorAll("img")).toHaveLength(1);
+    expect(hdr?.getAttribute("aria-label")).toBe("DV HDR10");
+    const imdb = container.querySelector("[data-overlay-id='rating_imdb']");
+    expect(imdb?.querySelector("img")).toBeTruthy();
+    expect(imdb?.textContent).toBe("8.7");
+  });
+
+  it.each(["top-center", "bottom-center"] as const)("draws a %s badge centred", (position) => {
+    const prefs = prefsWithOnly("resolution");
+    prefs.items.resolution = { ...prefs.items.resolution, position };
+    const { container } = render(<CardOverlays data={SAMPLE_MOVIE_DATA} prefs={prefs} />);
+    expect(container.querySelector(`[data-overlay-edge='${position}']`)?.textContent).toBe("4K");
+  });
+
   it("renders HLG as a plain text label without an HDR wordmark", () => {
     const { container } = render(
       <CardOverlays
