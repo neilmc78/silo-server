@@ -8,6 +8,7 @@ import type { OverlayData } from "./types";
 // extractor centralizes the mapping so adding a new overlay-relevant field
 // only touches one place.
 interface OverlaySourceItem {
+  type?: string;
   overlay_summary?: OverlaySummary | null;
   rating_imdb?: number | null;
   rating_tmdb?: number | null;
@@ -32,9 +33,13 @@ function firstNonEmpty(values: string[] | undefined): string | undefined {
   return undefined;
 }
 
+// Series, seasons and episodes draw the series badge layout.
+const SERIES_TYPES = new Set(["series", "season", "episode"]);
+
 function extract(item: OverlaySourceItem): OverlayData {
   const summary = item.overlay_summary ?? undefined;
   return {
+    kind: item.type && SERIES_TYPES.has(item.type) ? "series" : "movie",
     resolution: summary?.resolution,
     hdr: summary?.hdr,
     audio: summary?.audio,
@@ -74,7 +79,7 @@ export function overlayDataFromSectionItem(item: SectionItem): OverlayData {
 }
 
 export function overlayDataFromEpisodeListItem(item: EpisodeListItem): OverlayData {
-  return extract(item);
+  return { ...extract(item), kind: "series" };
 }
 
 /**
@@ -85,10 +90,12 @@ export function overlayDataFromEpisodeListItem(item: EpisodeListItem): OverlayDa
  * overlay library.
  */
 export function overlayDataFromWatchlistTitle(
-  title: Pick<WatchlistTitle, "vote_average" | "content_rating" | "year">,
+  title: Pick<WatchlistTitle, "vote_average" | "content_rating" | "year"> &
+    Partial<Pick<WatchlistTitle, "media_type">>,
   status: Pick<WatchlistTitleStatus, "badge" | "badgeIcon" | "attention" | "downloadPercent">,
 ): OverlayData {
   return {
+    kind: title.media_type === "series" ? "series" : "movie",
     rating_tmdb: title.vote_average ?? null,
     content_rating: title.content_rating || undefined,
     year: title.year || null,

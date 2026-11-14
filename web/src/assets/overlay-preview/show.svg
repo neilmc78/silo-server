@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b1140"/>
+      <stop offset="0.4" stop-color="#b8325a"/>
+      <stop offset="0.62" stop-color="#f28b3c"/>
+      <stop offset="0.7" stop-color="#ffd27a"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e2774a"/>
+      <stop offset="0.25" stop-color="#7a2f52"/>
+      <stop offset="1" stop-color="#1c0f2b"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff3c4"/>
+      <stop offset="0.6" stop-color="#ffd27a"/>
+      <stop offset="1" stop-color="#ffd27a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.7"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="420" fill="url(#sky)"/>
+  <circle cx="230" cy="405" r="70" fill="url(#sun)"/>
+  <rect y="410" width="400" height="190" fill="url(#sea)"/>
+  <g stroke="#ffe3a6" stroke-linecap="round" opacity="0.7">
+    <line x1="200" y1="425" x2="262" y2="425" stroke-width="3"/>
+    <line x1="190" y1="442" x2="270" y2="442" stroke-width="2.5"/>
+    <line x1="208" y1="460" x2="252" y2="460" stroke-width="2"/>
+    <line x1="215" y1="480" x2="246" y2="480" stroke-width="1.5"/>
+  </g>
+  <path d="M0 300 L 40 290 L 70 320 L 110 335 L 128 380 L 150 410 L 0 410 Z" fill="#1a0b24"/>
+  <path d="M0 410 L 150 410 L 165 600 L 0 600 Z" fill="#12081b"/>
+  <g fill="#12081b">
+    <rect x="62" y="230" width="18" height="62"/>
+    <path d="M58 230 l13 -14 l13 14 z"/>
+    <rect x="60" y="240" width="22" height="4" fill="#ffe7a3"/>
+  </g>
+  <g stroke="#1a0b24" stroke-width="2" fill="none" stroke-linecap="round">
+    <path d="M300 170 q8 -7 16 0 q8 -7 16 0"/>
+    <path d="M330 200 q6 -5 12 0 q6 -5 12 0"/>
+  </g>
+  <rect width="400" height="600" fill="url(#fade)"/>
+  <text x="200" y="500" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="20" letter-spacing="8" fill="#ffe7c2">THE</text>
+  <text x="200" y="542" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="38" letter-spacing="4" fill="#fff4e3">LONG COAST</text>
+</svg>
