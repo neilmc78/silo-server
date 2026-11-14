@@ -60,10 +60,16 @@ function hdrNames(value: string | undefined): string[] {
 
 // The parts for a run of formats, or null when none has a logo (the badge
 // keeps its label).
-function formatParts(texts: (string | null | undefined)[], formats: string[]): BadgePart[] | null {
+function formatParts(
+  texts: (string | null | undefined)[],
+  formats: string[],
+  after: string[] = [],
+): BadgePart[] | null {
+  const text = (value: string): BadgePart => ({ kind: "text", text: value });
   const parts: BadgePart[] = [
-    ...texts.filter((x): x is string => !!x).map((text) => ({ kind: "text" as const, text })),
+    ...texts.filter((x): x is string => !!x).map(text),
     ...formats.map(formatPart),
+    ...after.map(text),
   ];
   return parts.some((part) => part.kind === "logo") ? parts : null;
 }
@@ -200,6 +206,25 @@ export const TECH_OVERLAYS: readonly OverlayDef[] = [
     iconCapable: true,
     getValue: (d) => d.audio_channels ?? null,
     getValueKey: (d) => d.audio_channels || null,
+  },
+  {
+    id: "audio_codec_channels",
+    category: "tech",
+    get label() {
+      return t("web.settings.overlays.badge.audioCodecChannels.label");
+    },
+    get description() {
+      return t("web.settings.overlays.badge.audioCodecChannels.description");
+    },
+    defaultPosition: "top-left",
+    defaultEnabled: false,
+    iconCapable: true,
+    getValue: (d) => [d.audio, d.audio_channels].filter(Boolean).join(" ") || null,
+    getIcon: (d) => audioIcon(d.audio),
+    // The API's audio and channel values joined by a space: "Atmos 7.1".
+    getValueKey: (d) => [d.audio, d.audio_channels].filter(Boolean).join(" ") || null,
+    getParts: (d) =>
+      d.audio ? formatParts([], [d.audio], d.audio_channels ? [d.audio_channels] : []) : null,
   },
   {
     id: "video_codec",

@@ -6,8 +6,10 @@ import {
   OVERLAY_PREVIEW_SAMPLES,
   OVERLAY_PREVIEW_WATCH_STATES,
   requestDownloadBarPercent,
+  withSampleOverrides,
   type CardOverlayPrefs,
   type OverlayPreviewVariant,
+  type OverlaySampleOverrides,
 } from "@/lib/overlays";
 import { carouselCardWidthClasses, type PosterSize } from "@/lib/uiCustomization";
 
@@ -24,6 +26,8 @@ interface OverlayPreviewCardProps {
   /** The poster size to draw at; the card is as wide as a home-row card. */
   posterSize?: PosterSize;
   showPosterOverlays?: boolean;
+  /** Values swapped into the sample to try badges with. */
+  sampleOverrides?: OverlaySampleOverrides;
 }
 
 // Preview used by the admin defaults editor. Renders a 2:3 sample poster with the actual <CardOverlays /> renderer on top of it,
@@ -34,8 +38,9 @@ export function OverlayPreviewCard({
   variant = "movie",
   posterSize = "standard",
   showPosterOverlays = true,
+  sampleOverrides = {},
 }: OverlayPreviewCardProps) {
-  const data = OVERLAY_PREVIEW_SAMPLES[variant];
+  const data = withSampleOverrides(OVERLAY_PREVIEW_SAMPLES[variant], sampleOverrides);
   const downloadPercent = showPosterOverlays ? requestDownloadBarPercent(data, prefs) : null;
   return (
     <div className={`mx-auto ${carouselCardWidthClasses(posterSize)}`}>
