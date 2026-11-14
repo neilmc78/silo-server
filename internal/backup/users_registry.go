@@ -71,6 +71,10 @@ var excludedUserTables = map[string]string{
 	// Sessions, credentials, devices, and links to outside accounts.
 	"auth_sessions":                    "login sessions",
 	tableAPIKeys:                       "API keys",
+	"user_totp":                        "two-step sign-in methods",
+	"user_passkeys":                    "two-step sign-in methods",
+	"user_recovery_codes":              "two-step sign-in methods",
+	"auth_challenges":                  "two-step sign-ins in progress",
 	"oauth_completions":                excludedSignIn,
 	"oauth_link_tickets":               excludedSignIn,
 	"oauth_pending_links":              "external sign-in links",

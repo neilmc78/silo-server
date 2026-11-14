@@ -262,6 +262,80 @@ hour. An account gets at most one requested link every five minutes. A requested
 link replaces the account's earlier requested link, but never a live link an
 administrator issued; while one exists, requests send nothing.
 
+## Two-step sign-in
+
+An account that signs in with a local password can add a second step: an
+authenticator app (TOTP, RFC 6238, six digits, 30-second steps, SHA-1), one or
+more passkeys (WebAuthn), and ten one-time recovery codes that come with the
+first factor. The account has two-step sign-in while it holds a confirmed
+authenticator or at least one passkey. Only local password sign-in asks for
+it; OIDC, OAuth plugin, LDAP directory and network sign-in, device-code
+approval and token refresh do not. It is optional per account. Break-glass accounts
+cannot set it up and never get the second step, even if they held methods
+before they became break-glass, so they stay a password-only way back in.
+
+A correct password for such an account opens no session. v2 `login` answers
+`401 second_factor_required` with two headers:
+
+- `Silo-Second-Factor-Challenge`: the waiting sign-in.
+- `Silo-Second-Factor-Methods`: what the account can use, comma-separated
+  (`totp`, `passkey`, `recovery`).
+
+`POST /api/v2/auth/login/second-factor` (`completeSecondFactorLogin`) takes the
+challenge and exactly one of `code`, `recovery_code` or `passkey`, and returns
+the same token pair as `login`. A challenge lasts five minutes, opens one
+session, is spent by five wrong answers, and stops working if the password
+changes between the steps. The account is re-checked before the answer, so a
+challenge whose account changed its password, was disabled or lost local
+sign-in is spent without the answer being checked. Each answer spends one
+attempt of the account's second-step budget, which is separate from the
+password step's name budget (see
+"Sign-in attempts per name"); a correct password clears its name budget but
+never the second-step budget. Over budget is `429 rate_limited`. A wrong answer is `401
+second_factor_invalid`; an unknown, used or expired challenge is `401
+invalid_token`. An authenticator code is accepted one step either side of now,
+and never for a step at or before the last one accepted.
+
+For a passkey, `POST /api/v2/auth/login/second-factor/passkey-options` returns
+the WebAuthn request options for the challenge. Passkeys are bound to the host
+of `server.public_url`, which must be `https`; otherwise the passkey operations
+answer `409 capability_not_configured` and the account uses its other methods.
+
+Surfaces that cannot ask for a second step refuse such an account: v1 `POST
+/auth/login` answers `401 second_factor_required`, and the Jellyfin and
+Audiobookshelf compatibility logins refuse it like a temporary password.
+Jellyfin clients can use Quick Connect, and Silo apps device-code sign-in,
+approved from a session that already passed the second step. A password reset
+link on such an account resets the password and answers `sign_in_required`.
+
+The account manages its methods under `/api/v2/account/second-factors` with
+the rules of `changePassword` (the primary profile on a plain login session).
+Turning a method on, removing one, or replacing the recovery codes needs
+`current_password`, so a stolen session alone cannot put a method in front of
+the owner's next sign-in. For a passkey the password goes with the request for
+creation options, so a wrong one never leaves a passkey on the device that the
+server will not store. A code or passkey refused while turning a method on is
+`422 validation_failed` at `body.code` or `body.credential`. A passkey whose signature counter goes backwards is
+refused as a possible clone. Turning methods on or off, and administrator
+resets, are logged (`component=auth`).
+An administrator can remove all of an account's methods with `DELETE
+/api/v2/admin/users/{id}/second-factors`; the Owner rules apply, and an
+administrator cannot reset their own account this way (`409 conflict`).
+
+A full restore from a backup keeps the live server's authenticator secrets,
+passkeys and recovery codes, as it does API keys, so it never brings back a
+method removed since the backup or drops one added since. Sign-ins waiting on
+their second step are not backed up.
+
+Known limits: someone who has the password can keep an enrolled account's
+second-step budget used up, which also delays its owner, until the password is
+changed (an administrator can set a new one). Turning a method on does not end
+other sessions, Jellyfin or Audiobookshelf tokens, or API keys. Moving server
+ownership makes the new Owner break-glass, which stops asking for its second
+step. The
+authenticator secret is stored encrypted with the data cipher, bound to its
+row; recovery codes are stored as SHA-256 hashes.
+
 ## Email addresses
 
 Every v2 write that stores an account address (`setupServer`, `signup`,
