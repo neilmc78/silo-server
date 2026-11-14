@@ -128,9 +128,11 @@ describe("CardOverlays", () => {
     const hdr = container.querySelector("[data-overlay-id='hdr']");
     expect(hdr?.querySelectorAll("img")).toHaveLength(1);
     expect(hdr?.getAttribute("aria-label")).toBe("DV HDR10");
+    // A logo-only badge keeps a text line's height, so logos beside it sit level.
+    expect(hdr?.querySelector("[data-overlay-strut]")).toBeTruthy();
     const imdb = container.querySelector("[data-overlay-id='rating_imdb']");
     expect(imdb?.querySelector("img")).toBeTruthy();
-    expect(imdb?.textContent).toBe("8.7");
+    expect(imdb?.textContent?.replace("\u200b", "")).toBe("8.7");
   });
 
   it.each(["top-center", "bottom-center"] as const)("draws a %s badge centred", (position) => {
