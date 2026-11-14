@@ -42,6 +42,8 @@ export type V2OperationKey = keyof typeof v2Operations;
 // A refusal cannot be repaired by refreshing a previously stored session.
 const authExchangeOperations = new Set<V2OperationKey>([
   "POST /api/v2/auth/login",
+  "POST /api/v2/auth/login/second-factor",
+  "POST /api/v2/auth/login/second-factor/passkey-options",
   "POST /api/v2/auth/oauth/complete",
   "POST /api/v2/auth/refresh",
   "POST /api/v2/auth/setup",
