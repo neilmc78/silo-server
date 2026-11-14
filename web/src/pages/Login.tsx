@@ -25,6 +25,8 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useServerBranding } from "@/hooks/useServerBranding";
 import { AuthBackground } from "@/components/auth/AuthBackground";
 import { AuthLanguagePicker } from "@/components/auth/AuthLanguagePicker";
+import { SecondFactorStep } from "@/components/auth/SecondFactorStep";
+import { secondFactorChallengeOf, type SecondFactorChallenge } from "@/lib/secondFactor";
 import { sanitizeAuthRedirect } from "@/lib/authRedirect";
 import { formatDeviceCode, spokenDeviceCode } from "@/lib/deviceCode";
 import {
@@ -113,6 +115,7 @@ export default function Login() {
   const providerPickerId = useId();
   const providerPickerHintId = useId();
   const [loginRefusal, setLoginRefusal] = useState<string | null>(null);
+  const [secondFactor, setSecondFactor] = useState<SecondFactorChallenge | null>(null);
   // Read once: a sign-out in this tab keeps the page from sending the person
   // straight back to the provider (see markSignedOut).
   const [signedOutHere] = useState(wasSignedOut);
@@ -383,6 +386,12 @@ export default function Login() {
       );
       await navigateAfterLogin(signedIn);
     } catch (err) {
+      const challenge = secondFactorChallengeOf(err);
+      if (challenge) {
+        setPassword("");
+        setSecondFactor(challenge);
+        return;
+      }
       const refusal = err instanceof V2ProblemError ? passwordLoginRefusal(err.problemType) : null;
       if (refusal) {
         setLoginRefusal(refusal);
@@ -612,7 +621,19 @@ export default function Login() {
               )}
             </div>
           )}
-          {passwordFormShown && (
+          {passwordFormShown && secondFactor && (
+            <SecondFactorStep
+              challenge={secondFactor}
+              onCancel={() => setSecondFactor(null)}
+              onSignedIn={async (pair) => {
+                clearSignedOut();
+                const session = sessionFromTokenPair(pair);
+                completeLogin(session);
+                await navigateAfterLogin(session.user);
+              }}
+            />
+          )}
+          {passwordFormShown && !secondFactor && (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="username">{t("web.auth.username")}</Label>
