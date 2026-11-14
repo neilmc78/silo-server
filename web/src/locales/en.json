@@ -72385,6 +72385,38 @@
       "value": "name"
     }
   ],
+  "web.admin.settings.signIn.provider.publicUrl.description": [
+    {
+      "type": 0,
+      "value": "The provider sends people back to this server after they sign in."
+    }
+  ],
+  "web.admin.settings.signIn.provider.publicUrl.missing": [
+    {
+      "type": 0,
+      "value": "Set it in "
+    },
+    {
+      "type": 8,
+      "value": "link",
+      "children": [
+        {
+          "type": 0,
+          "value": "General settings"
+        }
+      ]
+    },
+    {
+      "type": 0,
+      "value": "."
+    }
+  ],
+  "web.admin.settings.signIn.provider.publicUrl.title": [
+    {
+      "type": 0,
+      "value": "Set the server's public URL"
+    }
+  ],
   "web.admin.settings.signIn.provider.register.description": [
     {
       "type": 0,
