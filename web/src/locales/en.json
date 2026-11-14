@@ -46670,6 +46670,12 @@
       "value": "Operational tools that affect the whole catalog live here. Use this page for bulk import/export workflows and other future maintenance actions."
     }
   ],
+  "web.admin.maintenance.page.subtitleWithRestart": [
+    {
+      "type": 0,
+      "value": "Operational tools that affect the whole catalog live here. Use this page for bulk import/export workflows and other future maintenance actions. Restarting tells playback in progress first, then stops this server for its supervisor to start again; other nodes in a cluster keep running."
+    }
+  ],
   "web.admin.maintenance.page.title": [
     {
       "type": 0,

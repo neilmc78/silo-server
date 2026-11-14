@@ -4580,6 +4580,7 @@ export type MessageKey =
   | "web.admin.logs.tabs.application"
   | "web.admin.logs.tabs.audit"
   | "web.admin.maintenance.page.subtitle"
+  | "web.admin.maintenance.page.subtitleWithRestart"
   | "web.admin.maintenance.page.title"
   | "web.admin.markers.history.actionCleared"
   | "web.admin.markers.history.actionSet"
