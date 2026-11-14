@@ -3,6 +3,7 @@
 // file layout free of consumer churn.
 
 export type {
+  BadgePart,
   AccentStrategy,
   CardOverlayPrefs,
   OverlayCategory,
@@ -23,6 +24,7 @@ export type {
 
 export { OVERLAY_REGISTRY, OVERLAY_MAP, getOverlayDef, isOverlayOffered } from "./registry";
 export { OVERLAY_POSITIONS, OVERLAY_CATEGORIES, WORDMARK_TEXT } from "./types";
+export { overlayLogo, scoreColor } from "./logos";
 export {
   buildDefaultPrefs,
   parseOverlayPrefs,
