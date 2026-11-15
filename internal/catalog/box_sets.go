@@ -109,7 +109,8 @@ func (r *BoxSetRepository) Collections(ctx context.Context, ids []int64) (map[in
 		return out, nil
 	}
 	rows, err := r.pool.Query(ctx, `
-		SELECT tmdb_collection_id, name, overview, poster_path, poster_thumbhash, backdrop_path, backdrop_thumbhash, member_tmdb_ids, fetched_at
+		SELECT tmdb_collection_id, name, overview, poster_path, poster_source_path, poster_thumbhash,
+			backdrop_path, backdrop_source_path, backdrop_thumbhash, member_tmdb_ids, fetched_at
 		FROM tmdb_movie_collections WHERE tmdb_collection_id = ANY($1)`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("querying tmdb collections: %w", err)
@@ -117,7 +118,8 @@ func (r *BoxSetRepository) Collections(ctx context.Context, ids []int64) (map[in
 	defer rows.Close()
 	for rows.Next() {
 		var c TMDBMovieCollection
-		if err := rows.Scan(&c.ID, &c.Name, &c.Overview, &c.PosterPath, &c.PosterThumbhash, &c.BackdropPath, &c.BackdropThumbhash, &c.MemberTMDBIDs, &c.FetchedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Overview, &c.PosterPath, &c.PosterSourcePath, &c.PosterThumbhash,
+			&c.BackdropPath, &c.BackdropSourcePath, &c.BackdropThumbhash, &c.MemberTMDBIDs, &c.FetchedAt); err != nil {
 			return nil, fmt.Errorf("scanning tmdb collection: %w", err)
 		}
 		out[c.ID] = c

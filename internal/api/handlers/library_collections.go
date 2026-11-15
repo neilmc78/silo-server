@@ -2367,7 +2367,7 @@ func defaultCollectionVisibility(visibility string) string {
 
 func normalizeCollectionManagementMode(mode string) string {
 	switch strings.TrimSpace(strings.ToLower(mode)) {
-	case collectionManagementModeSection, collectionManagementModeTemplateBundle:
+	case collectionManagementModeSection, collectionManagementModeTemplateBundle, catalog.BoxSetCollectionManagementMode:
 		return strings.TrimSpace(strings.ToLower(mode))
 	default:
 		return collectionManagementModeManual
