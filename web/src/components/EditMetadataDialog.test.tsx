@@ -15,6 +15,7 @@ vi.mock("@/hooks/queries/items", () => ({
     isPending: false,
   }),
   useRefreshItemMetadata: () => ({ mutate: mocks.refresh }),
+  useItemMetadataSavePending: () => false,
 }));
 vi.mock("@/hooks/useIsActingAdmin", () => ({ useIsActingAdmin: () => true }));
 vi.mock("@/components/MetadataTranslatePanel", () => ({ MetadataTranslatePanel: () => null }));
@@ -46,6 +47,7 @@ vi.mock("@/components/ImageSelectorTab", () => ({
 }));
 
 import EditMetadataDialog from "./EditMetadataDialog";
+import { FIELD_OVERVIEW } from "./EditMetadataDialog.form";
 
 function series(lockedFields: number[] = []): ItemDetail {
   return {
@@ -194,16 +196,28 @@ describe("EditMetadataDialog season and episode locks", () => {
     );
   });
 
-  // These rows don't store a tagline or a sort title, so the edit is dropped and
-  // must not freeze the provider's overview or title.
-  it("doesn't lock a field for an edit the row can't store", () => {
-    render(<EditMetadataDialog item={child("episode")} open onOpenChange={vi.fn()} />);
+  // No provider writes a season's or episode's title details or a season's IDs,
+  // so saving them locks nothing. The content rating stays the series', and a
+  // season has no sort title because seasons order by number.
+  it.each(["season", "episode"] as const)("saves a %s's title details and IDs", (type) => {
+    const item = { ...child(type), original_title: "Provider original title", tvdb_id: "7654321" };
+    render(<EditMetadataDialog item={item} open onOpenChange={vi.fn()} />);
+    expect(screen.queryByText("Content Rating")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sort Title") !== null).toBe(type === "episode");
+    fireEvent.change(screen.getByDisplayValue("Provider original title"), {
+      target: { value: "Edited original title" },
+    });
     fireEvent.change(screen.getByPlaceholderText("No tagline"), {
       target: { value: "Edited tagline" },
     });
+    fireEvent.click(screen.getByRole("button", { name: "External IDs" }));
+    fireEvent.change(screen.getByDisplayValue("7654321"), { target: { value: "1234567" } });
     fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
 
-    expect(mocks.update).toHaveBeenCalledWith({ tagline: "Edited tagline" }, expect.any(Object));
+    expect(mocks.update).toHaveBeenCalledWith(
+      { original_title: "Edited original title", tagline: "Edited tagline", tvdb_id: "1234567" },
+      expect.any(Object),
+    );
   });
 
   it("leaves a season image's lock on the series", () => {
@@ -253,6 +267,163 @@ describe("EditMetadataDialog cleared fields", () => {
 
     expect(mocks.update).toHaveBeenCalledWith(
       expect.objectContaining({ rating_imdb: null, first_air_date: null, air_timezone: null }),
+      expect.any(Object),
+    );
+  });
+});
+
+describe("EditMetadataDialog audiobooks", () => {
+  beforeEach(() => {
+    mocks.update.mockReset();
+  });
+
+  it("edits and locks an audiobook's title and year", () => {
+    const book = {
+      content_id: "book-test",
+      type: "audiobook",
+      title: "Test Book",
+      year: 2019,
+      locked_fields: [],
+    } as unknown as ItemDetail;
+    render(<EditMetadataDialog item={book} open onOpenChange={vi.fn()} />);
+
+    // Video provider IDs don't apply to a book, and the server takes no image
+    // uploads for one; Match Item sets its provider IDs and cover.
+    expect(screen.queryByRole("button", { name: "External IDs" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Images" })).not.toBeInTheDocument();
+    // A reset would empty the tag-derived fields no provider supplies.
+    expect(screen.queryByRole("button", { name: "Reset to Provider" })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByDisplayValue("Test Book"), { target: { value: "Edited Book" } });
+    fireEvent.click(screen.getByRole("button", { name: "Dates & Ratings" }));
+    fireEvent.change(screen.getByDisplayValue("2019"), { target: { value: "2001" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+
+    expect(mocks.update).toHaveBeenCalledWith(
+      { title: "Edited Book", year: 2001, locked_fields: [0, 13] },
+      expect.any(Object),
+    );
+  });
+});
+
+describe("EditMetadataDialog item change", () => {
+  // The movie page keeps the closed dialog mounted while a "More Like This"
+  // link opens another movie, then opens the dialog for that one (#4212).
+  it("shows the item it is opened for after the page moves to another", () => {
+    const movie = (id: string, title: string) =>
+      ({ content_id: id, type: "movie", title, locked_fields: [] }) as unknown as ItemDetail;
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <EditMetadataDialog item={movie("first", "First Movie")} open onOpenChange={onOpenChange} />,
+    );
+    rerender(
+      <EditMetadataDialog
+        item={movie("first", "First Movie")}
+        open={false}
+        onOpenChange={onOpenChange}
+      />,
+    );
+    rerender(
+      <EditMetadataDialog
+        item={movie("second", "Second Movie")}
+        open={false}
+        onOpenChange={onOpenChange}
+      />,
+    );
+    rerender(
+      <EditMetadataDialog
+        item={movie("second", "Second Movie")}
+        open
+        onOpenChange={onOpenChange}
+      />,
+    );
+
+    expect(screen.getByDisplayValue("Second Movie")).toBeTruthy();
+    expect(screen.queryByDisplayValue("First Movie")).toBeNull();
+  });
+});
+
+describe("EditMetadataDialog reopening", () => {
+  beforeEach(() => {
+    mocks.update.mockReset();
+    mocks.refresh.mockReset();
+  });
+
+  const movie = (title: string) =>
+    ({
+      content_id: "movie-test",
+      type: "movie",
+      title,
+      locked_fields: [],
+    }) as unknown as ItemDetail;
+
+  // The item page keeps the closed dialog mounted, so a reopening must start
+  // from the item as it is now (#4235).
+  it("drops edits that were closed without saving", () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <EditMetadataDialog item={movie("Kept Title")} open onOpenChange={onOpenChange} />,
+    );
+    fireEvent.change(screen.getByDisplayValue("Kept Title"), {
+      target: { value: "Abandoned Title" },
+    });
+    rerender(
+      <EditMetadataDialog item={movie("Kept Title")} open={false} onOpenChange={onOpenChange} />,
+    );
+    rerender(<EditMetadataDialog item={movie("Kept Title")} open onOpenChange={onOpenChange} />);
+
+    expect(screen.getByDisplayValue("Kept Title")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("shows the provider's values after Reset to Provider, and saving them sends nothing", () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <EditMetadataDialog item={movie("Edited Title")} open onOpenChange={onOpenChange} />,
+    );
+    // Reset closes the dialog, and the item refetches with the provider's title.
+    rerender(
+      <EditMetadataDialog item={movie("Edited Title")} open={false} onOpenChange={onOpenChange} />,
+    );
+    rerender(
+      <EditMetadataDialog
+        item={movie("Provider Title")}
+        open={false}
+        onOpenChange={onOpenChange}
+      />,
+    );
+    rerender(
+      <EditMetadataDialog item={movie("Provider Title")} open onOpenChange={onOpenChange} />,
+    );
+
+    expect(screen.getByDisplayValue("Provider Title")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  // Reopened before a save's or a reset's refetch lands, the dialog starts
+  // from the old values; the refetch must replace them, not be saved over.
+  it("shows a refetch that lands while it is open, and saving it sends only the edits", () => {
+    const onOpenChange = vi.fn();
+    const { rerender } = render(
+      <EditMetadataDialog item={movie("Old Title")} open onOpenChange={onOpenChange} />,
+    );
+    rerender(
+      <EditMetadataDialog
+        item={{ ...movie("New Title"), overview: "Old overview" }}
+        open
+        onOpenChange={onOpenChange}
+      />,
+    );
+    expect(screen.getByDisplayValue("New Title")).toBeTruthy();
+
+    fireEvent.change(screen.getByDisplayValue("Old overview"), {
+      target: { value: "Edited overview" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
+    expect(mocks.update).toHaveBeenCalledWith(
+      { overview: "Edited overview", locked_fields: [FIELD_OVERVIEW] },
       expect.any(Object),
     );
   });
