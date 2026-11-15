@@ -352,6 +352,7 @@ function Badge({ badge, preset, scalingMode, rail }: BadgeProps) {
         {/* A text strut: a logo-only badge stands as tall as a text badge, so
             logos beside each other sit level. Its negative margin cancels the gap. */}
         <span aria-hidden="true" data-overlay-strut="" className="-me-1 w-0 overflow-hidden">
+          {/* eslint-disable-next-line formatjs/no-literal-string-in-jsx -- an invisible zero-width space that sets the line height, never read */}
           {"\u200b"}
         </span>
         {badge.parts.map((part, index) =>
@@ -903,7 +904,12 @@ export default function CardOverlays({
               ...bandScrim("bottom"),
               paddingTop: `calc(${edgeInset} * 3)`,
               paddingInline: edgeInset,
-              paddingBottom: hasProgressBar ? `calc(${edgeInset} * 2)` : edgeInset,
+              // The progress bar's top edge sits at a fixed 0.5rem + 3px
+              // (WatchProgressBar) while edgeInset shrinks with the card, so
+              // small cards need the fixed floor to keep the marks clear of it.
+              paddingBottom: hasProgressBar
+                ? `max(calc(${edgeInset} * 2), calc(0.5rem + 6px))`
+                : edgeInset,
             }}
           >
             <BandMarks

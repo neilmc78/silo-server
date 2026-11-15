@@ -5,7 +5,13 @@ import {
   type UploadItemImageType,
 } from "@/api/v2/adminImages";
 import { getAdminItemFiles, splitAdminItem } from "@/api/v2/adminSplit";
-import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { useRealtimeEvents } from "@/components/realtimeEventsContext";
 import type {
   ApplyItemImageRequest,
@@ -104,6 +110,7 @@ interface ItemRefreshJobResult {
 
 interface RefreshItemMetadataContext {
   toastID: string | number;
+  startURL: string; // Path and query; onReplaced follows only while the browser is still on them.
 }
 
 export function useRefreshItemMetadata() {
@@ -117,6 +124,7 @@ export function useRefreshItemMetadata() {
           ? t("web.item.toast.refreshRunningComplete")
           : t("web.item.toast.refreshRunningQuick"),
       ),
+      startURL: window.location.pathname + window.location.search,
     }),
     mutationFn: async ({ item, mode }: RefreshItemMetadataVariables) => {
       const job = adminTaskJobFromV2(
@@ -220,8 +228,10 @@ export function useRefreshItemMetadata() {
         }
       }
 
-      if (detailContentID && detailContentID !== item.content_id && onReplaced) {
-        await onReplaced(detailContentID);
+      // Runs after unmount too. Check the URL, not mount: a page whose old ID 404s must follow.
+      const onStartURL = window.location.pathname + window.location.search === context?.startURL;
+      if (detailContentID && detailContentID !== item.content_id && onStartURL) {
+        await onReplaced?.(detailContentID);
       }
     },
     onError: (err, _variables, context) => {
@@ -344,9 +354,12 @@ export interface UpdateItemMetadataRequest {
   locked_fields?: number[];
 }
 
+const itemMetadataWriteKey = (contentId: string) => ["items", "metadata-write", contentId] as const;
+
 export function useUpdateItemMetadata(contentId: string) {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: itemMetadataWriteKey(contentId),
     retry: false,
     mutationFn: async (data: UpdateItemMetadataRequest) =>
       catalogItemDetailFromV2(
@@ -356,16 +369,25 @@ export function useUpdateItemMetadata(contentId: string) {
           retryAuthentication: false,
         }),
       ),
+    // Returning the refetch keeps the save pending until the item is
+    // refetched. A reopened Edit Metadata seeds its form, and the whole lock
+    // list it sends, from the item, so it must not see the pre-save item.
     onSuccess: () => {
-      void invalidateMediaSurfaceQueries(queryClient, { itemId: contentId }).then(() => {
+      toast.success(t("web.item.toast.metadataSaved"));
+      return invalidateMediaSurfaceQueries(queryClient, { itemId: contentId }).then(() => {
         bumpHomeRefreshSignal(queryClient);
       });
-      toast.success(t("web.item.toast.metadataSaved"));
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : t("web.item.toast.saveMetadataFailed"));
     },
   });
+}
+
+// Whether a metadata save for the item is still running, including one
+// started from an earlier opening of Edit Metadata.
+export function useItemMetadataSavePending(contentId: string) {
+  return useIsMutating({ mutationKey: itemMetadataWriteKey(contentId) }) > 0;
 }
 
 type WatchedMutationItem = Pick<

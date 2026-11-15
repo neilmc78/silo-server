@@ -39,22 +39,11 @@ func lockLocalSignIn(ctx context.Context, tx pgx.Tx, userID int, refusePasswordC
 		if err := lockServerSettings(ctx, tx); err != nil {
 			return nil, err
 		}
-		allowed, err := localPasswordLoginAllowed(ctx, tx)
-		if err != nil {
-			return nil, err
-		}
-		if !allowed {
-			return nil, ErrLocalLoginDisabled
-		}
-		// A re-check refusing the person holds this row lock too, so a
-		// refusal cannot land between this check and the session.
-		refused, err := networkRefused(ctx, tx, current.ID)
-		if err != nil {
-			return nil, err
-		}
-		if refused {
-			return nil, ErrNotPermitted
-		}
+	}
+	// A re-check refusing the person holds this row lock too, so a refusal
+	// cannot land between this check and the session.
+	if err := localPasswordPolicy(ctx, tx, current); err != nil {
+		return nil, err
 	}
 	return current, nil
 }
