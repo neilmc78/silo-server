@@ -355,7 +355,11 @@ func (h *LibraryHandler) UpdateLibrary(ctx context.Context, id, userID int, req 
 		slog.ErrorContext(ctx, "fetching updated library", "component", "api", "error", err)
 		return LibraryView{}, apiError(http.StatusInternalServerError, "internal_error", "Failed to fetch updated library")
 	}
-	if folder.BoxSetsEnabled && (!oldFolder.BoxSetsEnabled || req.Paths != nil || req.Enabled != nil) {
+	// A sync also follows turning box sets off or changing the minimum, so
+	// the box set collections match the library's settings.
+	boxSetsChanged := folder.BoxSetsEnabled != oldFolder.BoxSetsEnabled ||
+		folder.BoxSetMinMovies != oldFolder.BoxSetMinMovies
+	if boxSetsChanged || (folder.BoxSetsEnabled && (req.Paths != nil || req.Enabled != nil)) {
 		h.syncBoxSets()
 	}
 

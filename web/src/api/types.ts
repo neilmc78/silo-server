@@ -1670,7 +1670,7 @@ export interface LibraryCollection {
   updated_at: string;
 }
 
-export type LibraryCollectionManagementMode = "manual" | "section" | "template_bundle";
+export type LibraryCollectionManagementMode = "manual" | "section" | "template_bundle" | "box_set";
 
 export interface LibraryCollectionGroup {
   id: string;
