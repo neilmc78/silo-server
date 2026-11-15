@@ -352,6 +352,7 @@ function Badge({ badge, preset, scalingMode, rail }: BadgeProps) {
         {/* A text strut: a logo-only badge stands as tall as a text badge, so
             logos beside each other sit level. Its negative margin cancels the gap. */}
         <span aria-hidden="true" data-overlay-strut="" className="-me-1 w-0 overflow-hidden">
+          {/* eslint-disable-next-line formatjs/no-literal-string-in-jsx -- an invisible zero-width space that sets the line height, never read */}
           {"\u200b"}
         </span>
         {badge.parts.map((part, index) =>
