@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -29,16 +29,12 @@ import {
   type PrimaryMenuItem,
 } from "@/lib/uiCustomization";
 
-import { CardOverlaySettings } from "./CardOverlaySettings";
 import { ChoiceButtons } from "@/components/settings/ChoiceButtons";
 import { PosterCardPreview } from "./PosterCardPreview";
 import { ResetButton } from "./ResetButton";
 
 const CLIENT_SCOPE = { scope: "profile_client" } as const;
 const DEVICE_SCOPE = { scope: "profile_device" } as const;
-
-/** How long the preview keeps the hover-only shortcut buttons showing after a pick. */
-const SHORTCUT_REVEAL_MS = 2500;
 
 const BUILTIN_LABELS: Record<string, MessageKey> = {
   home: "web.settings.interface.builtin.home",
@@ -82,14 +78,6 @@ function menuItemLabel(
 
 export default function InterfaceSettings() {
   const t = useT();
-  const [revealShortcuts, setRevealShortcuts] = useState(false);
-  const revealTimer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(revealTimer.current), []);
-  const flashShortcuts = useCallback(() => {
-    setRevealShortcuts(true);
-    window.clearTimeout(revealTimer.current);
-    revealTimer.current = window.setTimeout(() => setRevealShortcuts(false), SHORTCUT_REVEAL_MS);
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -104,12 +92,13 @@ export default function InterfaceSettings() {
       <div className="grid gap-x-10 @5xl:grid-cols-[minmax(0,1fr)_auto]">
         <aside className="pb-2 @5xl:order-last @5xl:pb-0">
           <div className="@5xl:sticky @5xl:top-[calc(1.5rem+var(--impersonation-banner-height))] @5xl:max-h-[calc(100dvh-1.5rem-var(--impersonation-banner-height))] @5xl:overflow-y-auto @5xl:pt-6">
-            <PosterCardPreview revealShortcuts={revealShortcuts} />
+            <PosterCardPreview revealShortcuts={false} />
           </div>
         </aside>
         <div className="min-w-0">
           <PosterSettings />
-          <CardOverlaySettings onShortcutsPicked={flashShortcuts} />
+          {/* Poster badges and card shortcuts are set by the administrator
+              (Admin > Appearance) in this fork; profiles cannot override them. */}
           <MenuSettings />
         </div>
       </div>
