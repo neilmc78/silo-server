@@ -449,3 +449,33 @@ func TestSetValue_AuditsCrossProfileWrite(t *testing.T) {
 		}
 	}
 }
+
+// Poster badges and card shortcuts belong to the administrator in this fork:
+// a profile cannot write them, but can still clear a value stored earlier.
+func TestAdminOwnedSettingsRefuseProfileWrites(t *testing.T) {
+	handler, store := newValuesTestHandler(t)
+	ctx := seamCtx(t, "profile-1")
+	for key, value := range map[string]string{
+		settingskeys.UiCardOverlays:            `{"version":2,"preset":"classic","order":[],"items":{}}`,
+		settingskeys.UiCardOverlaysEnabled:     `false`,
+		settingskeys.UiCardQuickActions:        `"both"`,
+		settingskeys.UiCardQuickActionsEnabled: `true`,
+	} {
+		req := seamReq(key, settingscontract.ScopeProfile)
+		_, err := handler.SetSettingValue(ctx, seamUserID, req, json.RawMessage(value))
+		if apiErr := requireSettingStatus(t, err, http.StatusBadRequest, key); apiErr.Code != settingErrorScopeDenied {
+			t.Fatalf("%s code = %q, want %q", key, apiErr.Code, settingErrorScopeDenied)
+		}
+		identity := userstore.SettingIdentity{Key: key, Scope: settingscontract.ScopeProfile, ProfileID: "profile-1"}
+		if stored, err := store.GetSettingValue(context.Background(), identity); err != nil || stored != nil {
+			t.Fatalf("%s refused write stored %+v, err=%v", key, stored, err)
+		}
+		// A value stored before the rule (here written directly) can be cleared.
+		if _, err := store.UpsertSettingValue(context.Background(), identity, json.RawMessage(value)); err != nil {
+			t.Fatalf("%s seed: %v", key, err)
+		}
+		if err := handler.DeleteSettingValue(ctx, seamUserID, req); err != nil {
+			t.Fatalf("%s clear: %v", key, err)
+		}
+	}
+}
