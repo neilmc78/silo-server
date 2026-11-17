@@ -1,0 +1,176 @@
+# Daily fork build: Silo's main plus every branch in .github/fork-branches.txt.
+# A clean build that produces an image fast-forwards main and moves :neilflix.
+# A conflict, orphaned main commit or failed image leaves main alone and
+# opens (or comments on) the issue labelled daily-build.
+name: NeilFlix daily
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and report without pushing anything
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  packages: write
+  issues: write
+
+concurrency:
+  group: neilflix-daily
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+  DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      changed: ${{ steps.build.outputs.changed }}
+      sha: ${{ steps.build.outputs.sha }}
+      branch: ${{ steps.build.outputs.branch }}
+      upstream: ${{ steps.build.outputs.upstream }}
+      failure: ${{ steps.build.outputs.failure }}
+      conflict_branch: ${{ steps.build.outputs.conflict_branch }}
+      conflict_files: ${{ steps.build.outputs.conflict_files }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Assemble build branch
+        id: build
+        run: scripts/fork/daily-build.sh
+      - name: Summary
+        if: always()
+        env:
+          CHANGED: ${{ steps.build.outputs.changed }}
+          BRANCH: ${{ steps.build.outputs.branch }}
+          UP: ${{ steps.build.outputs.upstream }}
+        run: |
+          {
+            echo "### NeilFlix daily"
+            echo "- Silo main: \`${UP:-?}\`"
+            echo "- Build branch: \`${BRANCH:-none}\`"
+            echo "- Changed: ${CHANGED:-n/a}; dry run: $DRY_RUN"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  image:
+    needs: assemble
+    if: needs.assemble.outputs.changed == 'true' && !inputs.dry_run
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.assemble.outputs.sha }}
+
+      - name: Build date
+        id: meta
+        run: echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same images and cache scopes as neilflix-image.yml, minus the
+      # :neilflix tag, which only moves once main has moved.
+      - name: Build Silo image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:neilflix-base-${{ needs.assemble.outputs.sha }}
+          build-args: |
+            BUILD_REVISION=${{ needs.assemble.outputs.sha }}
+            BUILD_NUMBER=${{ github.run_number }}
+            BUILD_DATE=${{ steps.meta.outputs.date }}
+          cache-from: type=gha,scope=base
+          cache-to: type=gha,scope=base,mode=max
+
+      - name: Build all-in-one image
+        uses: docker/build-push-action@v6
+        with:
+          context: omnibus
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            SILO_IMAGE=${{ env.IMAGE }}:neilflix-base-${{ needs.assemble.outputs.sha }}
+          tags: ${{ env.IMAGE }}:neilflix-${{ needs.assemble.outputs.sha }}
+          cache-from: type=gha,scope=aio
+          cache-to: type=gha,scope=aio,mode=max
+
+  promote:
+    needs: [assemble, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # A push with GITHUB_TOKEN does not start neilflix-image.yml, so the
+      # image is not rebuilt. Plain push: fast-forward or fail.
+      - name: Fast-forward main
+        run: git push origin "${{ needs.assemble.outputs.sha }}:refs/heads/main"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Move :neilflix
+        run: docker buildx imagetools create -t "$IMAGE:neilflix" "$IMAGE:neilflix-${{ needs.assemble.outputs.sha }}"
+      - name: Close daily-build issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.assemble.outputs.branch }}
+        run: |
+          for n in $(gh issue list --label daily-build --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "Fixed: $BRANCH shipped to main."
+          done
+
+  report:
+    needs: [assemble, image, promote]
+    if: failure() && !inputs.dry_run
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Open or update daily-build issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILURE: ${{ needs.assemble.outputs.failure }}
+          BRANCH: ${{ needs.assemble.outputs.branch }}
+          UP: ${{ needs.assemble.outputs.upstream }}
+          CONFLICT_BRANCH: ${{ needs.assemble.outputs.conflict_branch }}
+          CONFLICT_FILES: ${{ needs.assemble.outputs.conflict_files }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          case "$FAILURE" in
+            conflict) what="\`$CONFLICT_BRANCH\` conflicts with Silo \`$UP\`. Rebase or merge Silo into that branch, resolve, and push it."
+                      files=$(printf '%s\n' "$CONFLICT_FILES" | sed 's/^/- `/; s/$/`/') ;;
+            orphans)  what="main has commits no fork branch carries. Move them onto a listed branch; the run log lists them." ;;
+            *)        what="The build or image step failed." ;;
+          esac
+          body=$(printf '%s\n\n%s\n\nBuild branch: `%s`\nRun: %s\n' "$what" "${files:-}" "${BRANCH:-none}" "$RUN_URL")
+          gh label create daily-build --color B60205 --description "Daily fork build is blocked" 2>/dev/null || true
+          n=$(gh issue list --label daily-build --state open --json number --jq '.[0].number')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body "$body"
+          else
+            gh issue create --title "Daily build blocked" --label daily-build --body "$body"
+          fi
