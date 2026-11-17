@@ -150,3 +150,30 @@ func TestCeilingNarrowsWithoutDestroying(t *testing.T) {
 // fake it, which is exactly the seam that lets an incompatible signature go
 // unnoticed until a caller wires the two together.
 var _ Store = (userstore.UserStore)(nil)
+
+// Poster badges and card shortcuts belong to the administrator in this fork:
+// a value a profile stored is ignored and the default stands.
+func TestAdminOwnedSettingsIgnoreStoredProfileValues(t *testing.T) {
+	for _, key := range []string{
+		"ui.card_overlays", "ui.card_overlays_enabled",
+		"ui.card_quick_actions", "ui.card_quick_actions_enabled",
+	} {
+		t.Run(key, func(t *testing.T) {
+			rows := []userstore.SettingValue{
+				row(key, settingscontract.ScopeProfile, `true`, userstore.SettingIdentity{ProfileID: "p1"}),
+			}
+			got := resolveOne(t, &fakeStore{rows: rows}, Context{ProfileID: "p1"}, key, nil)
+			if got.Source != settingscontract.ScopeDefault || got.Identity != nil || string(got.Value) != "null" {
+				t.Fatalf("got source %q value %s identity %v, want the default", got.Source, got.Value, got.Identity)
+			}
+		})
+	}
+	// Any other profile setting still resolves to the profile's value.
+	const other = "ui.card_presentation"
+	rows := []userstore.SettingValue{
+		row(other, settingscontract.ScopeProfile, `{"poster_size":"large"}`, userstore.SettingIdentity{ProfileID: "p1"}),
+	}
+	if got := resolveOne(t, &fakeStore{rows: rows}, Context{ProfileID: "p1"}, other, nil); got.Source != settingscontract.ScopeProfile {
+		t.Fatalf("%s source = %q, want profile", other, got.Source)
+	}
+}
