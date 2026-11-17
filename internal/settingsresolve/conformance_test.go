@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/Silo-Server/silo-server/internal/settingscontract"
+	"github.com/Silo-Server/silo-server/internal/settingskeys"
 	"github.com/Silo-Server/silo-server/internal/userstore"
 )
 
@@ -140,6 +141,15 @@ func runConformanceCase(t *testing.T, manifest *settingscontract.Manifest, tc co
 	t.Helper()
 	if len(tc.Keys) == 0 {
 		t.Fatal("case declares no keys")
+	}
+	// This fork hands some profile settings to the administrator
+	// (settingskeys.AdminOwned), so the shared fixture's expectation that a
+	// stored profile value wins does not hold for them. The fixture is the
+	// cross-client contract and stays as upstream wrote it.
+	for _, key := range tc.Keys {
+		if settingskeys.AdminOwned(key) {
+			t.Skipf("%s is admin-owned in this fork; its profile values are ignored", key)
+		}
 	}
 	if len(tc.Expected) == 0 {
 		t.Fatal("case declares no expectations")
