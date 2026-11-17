@@ -3376,7 +3376,8 @@ func main() {
 			taskMgr.Register(tasks.NewBackfillHDR10PlusTask(deps.DB, scanner.NewHDR10PlusBackfiller(deps.FileRepo, scanner.FFprobePathFromFFmpeg(cfg.Playback.FFmpegPath))))
 		}
 		taskMgr.Register(tasks.NewRefreshSeriesAirDatesTask(catalog.NewEpisodeRepository(deps.DB)))
-		boxSetSyncer := boxsets.NewSyncer(catalog.NewBoxSetRepository(deps.DB), tmdbClient)
+		boxSetSyncer := boxsets.NewSyncer(catalog.NewBoxSetRepository(deps.DB), tmdbClient).
+			WithCollections(catalog.NewBoxSetCollectionSyncer(deps.DB))
 		if metadataService != nil {
 			boxSetSyncer.WithImages(metadataService.AutoImageCacher)
 		}
