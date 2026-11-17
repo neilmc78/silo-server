@@ -1026,7 +1026,7 @@ func snapToStep(def *settingscontract.Definition, value float64) float64 {
 // stale id left in place would quarantine the user's whole badge config.
 var cardOverlayIDs = map[string]bool{
 	"resolution": true, "hdr": true, "resolution_hdr": true, "resolution_hdr_audio": true,
-	"audio": true, "audio_channels": true, "video_codec": true,
+	"audio": true, "audio_channels": true, "audio_codec_channels": true, "video_codec": true,
 	"container": true, "aspect_ratio": true, "release_type": true,
 	"edition": true, "multi_audio": true, "multi_sub": true,
 	"rating_imdb": true, "rating_tmdb": true, "rating_rt": true,
@@ -1040,7 +1040,8 @@ var cardOverlayIDs = map[string]bool{
 // the same schema.
 var (
 	cardOverlayPositions = map[string]bool{
-		"top-left": true, "top-right": true, "bottom-left": true, "bottom-right": true,
+		"top-left": true, "top-center": true, "top-right": true,
+		"bottom-left": true, "bottom-center": true, "bottom-right": true,
 		"left-edge": true, "right-edge": true,
 	}
 	cardOverlayAccent = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)

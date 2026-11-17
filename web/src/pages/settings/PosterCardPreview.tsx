@@ -1,8 +1,10 @@
 import { Eye, Heart } from "lucide-react";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 
 import CardOverlays from "@/components/overlays/CardOverlays";
 import CardWatchStatus from "@/components/overlays/CardWatchStatus";
+import { OverlaySampleControls } from "@/components/overlays/OverlaySampleControls";
+import { OVERLAY_PREVIEW_ART } from "@/components/overlays/previewArt";
 import { RequestDownloadBar } from "@/components/overlays/RequestDownloadBar";
 import { useOverlayPrefs } from "@/hooks/useOverlayPrefs";
 import { useT, type MessageKey } from "@/i18n";
@@ -17,8 +19,10 @@ import {
   OVERLAY_PREVIEW_VARIANTS,
   OVERLAY_PREVIEW_WATCH_STATES,
   requestDownloadBarPercent,
+  withSampleOverrides,
   type CardOverlayPrefs,
   type OverlayPreviewVariant,
+  type OverlaySampleOverrides,
 } from "@/lib/overlays";
 import {
   carouselCardWidthClasses,
@@ -60,13 +64,16 @@ const SHORTCUT_TILE =
 
 interface PosterCardPreviewViewProps {
   presentation: CardPresentation;
-  /** Null while badges are off. */
+  /** Null draws no badges. */
   overlayPrefs: CardOverlayPrefs | null;
   quickActionMode: CardQuickActionMode;
   /** Samples this server can show; the request sample needs request support. */
   variants: readonly OverlayPreviewVariant[];
   /** Show the shortcut buttons without hovering, right after they change. */
   revealShortcuts?: boolean;
+  /** Values swapped into the samples to try badges with; never saved. */
+  sampleOverrides?: OverlaySampleOverrides;
+  onSampleOverridesChange?: (next: OverlaySampleOverrides) => void;
 }
 
 export function PosterCardPreviewView({
@@ -75,6 +82,8 @@ export function PosterCardPreviewView({
   quickActionMode,
   variants,
   revealShortcuts = false,
+  sampleOverrides = {},
+  onSampleOverridesChange,
 }: PosterCardPreviewViewProps) {
   const t = useT();
   // Sample posters are as wide as the profile's poster cards in a home row
@@ -93,11 +102,15 @@ export function PosterCardPreviewView({
       className="surface-panel-subtle rounded-2xl border p-4"
       aria-label={t("web.settings.interface.preview.title")}
     >
-      <figcaption className="mb-3 flex items-baseline justify-between gap-3">
+      <figcaption className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <span className="text-sm font-semibold">{t("web.settings.interface.preview.title")}</span>
-        <span className="text-muted-foreground text-[13px]">
-          {t("web.settings.interface.preview.caption")}
-        </span>
+        {overlayPrefs && onSampleOverridesChange ? (
+          <OverlaySampleControls value={sampleOverrides} onChange={onSampleOverridesChange} />
+        ) : (
+          <span className="text-muted-foreground text-[13px]">
+            {t("web.settings.interface.preview.caption")}
+          </span>
+        )}
       </figcaption>
       <div
         className="flex min-h-56 flex-wrap items-start justify-center gap-2 @5xl:w-[var(--preview-row)]"
@@ -105,7 +118,7 @@ export function PosterCardPreviewView({
       >
         {variants.map((variant) => {
           const sample = SAMPLES[variant];
-          const data = OVERLAY_PREVIEW_SAMPLES[variant];
+          const data = withSampleOverrides(OVERLAY_PREVIEW_SAMPLES[variant], sampleOverrides);
           const downloadPercent = overlayPrefs
             ? requestDownloadBarPercent(data, overlayPrefs)
             : null;
@@ -127,6 +140,13 @@ export function PosterCardPreviewView({
                   sample.art,
                 )}
               >
+                <img
+                  src={OVERLAY_PREVIEW_ART[variant]}
+                  alt=""
+                  aria-hidden="true"
+                  draggable={false}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
                 {downloadPercent !== null ? <RequestDownloadBar percent={downloadPercent} /> : null}
                 {overlayPrefs ? (
                   <CardOverlays
@@ -183,13 +203,9 @@ export function PosterCardPreviewView({
  */
 export function PosterCardPreview({ revealShortcuts }: { revealShortcuts: boolean }) {
   const { cardPresentation } = useUICustomization();
-  const {
-    editablePrefs,
-    overlaysEnabled,
-    quickActionPreference,
-    quickActionsEnabled,
-    isOverlaySupported,
-  } = useOverlayPrefs();
+  const { editablePrefs, quickActionPreference, quickActionsEnabled, isOverlaySupported } =
+    useOverlayPrefs();
+  const [sampleOverrides, setSampleOverrides] = useState<OverlaySampleOverrides>({});
   // The request sample only shows a badge this server lets the profile keep.
   const variants = isOverlaySupported("request_status")
     ? OVERLAY_PREVIEW_VARIANTS
@@ -198,10 +214,13 @@ export function PosterCardPreview({ revealShortcuts }: { revealShortcuts: boolea
   return (
     <PosterCardPreviewView
       presentation={cardPresentation}
-      overlayPrefs={overlaysEnabled ? editablePrefs : null}
+      // Badges always show here, so they can be set up before they go on posters.
+      overlayPrefs={editablePrefs}
       quickActionMode={quickActionsEnabled ? quickActionPreference : "none"}
       variants={variants}
       revealShortcuts={revealShortcuts}
+      sampleOverrides={sampleOverrides}
+      onSampleOverridesChange={setSampleOverrides}
     />
   );
 }

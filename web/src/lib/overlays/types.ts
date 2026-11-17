@@ -1,11 +1,13 @@
 import type { CSSProperties } from "react";
 
-// Position on the poster card where a badge group is anchored: three corners
-// and a rail centred on each side edge. The top-right corner belongs to the
+// Position on the poster card where a badge group is anchored: three corners,
+// the middle of the top and bottom edges, and a rail centred on each side edge. The top-right corner belongs to the
 // watch-status indicator (CardWatchStatus), so no badge is placed there.
 export const OVERLAY_POSITIONS = [
   "top-left",
+  "top-center",
   "bottom-left",
+  "bottom-center",
   "bottom-right",
   "left-edge",
   "right-edge",
@@ -25,6 +27,7 @@ export type OverlayId =
   | "resolution_hdr_audio"
   | "audio"
   | "audio_channels"
+  | "audio_codec_channels"
   | "video_codec"
   | "container"
   | "aspect_ratio"
@@ -55,6 +58,9 @@ export type OverlayId =
 // Flat data bag passed to overlay renderers. Each field is optional —
 // extractors fill what's available and getValue() returns null when missing.
 export interface OverlayData {
+  // Which layout the card uses: a series (and its seasons and episodes) can
+  // have badges laid out apart from movies. Absent means movie.
+  kind?: OverlayCardKind;
   // tech (from OverlaySummary)
   resolution?: string;
   hdr?: string;
@@ -95,6 +101,8 @@ export interface OverlayData {
   request_download_percent?: number | null; // drives the card's download bar
 }
 
+export type OverlayCardKind = "movie" | "series";
+
 // Per-overlay user configuration. accentColor and showIcon are optional
 // overrides; undefined falls back to the def's defaultAccent / preset.
 export interface OverlayItemConfig {
@@ -107,6 +115,16 @@ export interface OverlayItemConfig {
   // badge's value key (OverlayDef.getValueKey) matches.
   image?: string;
   valueImages?: Record<string, string>;
+  // Colour the badge by its value (OverlayDef.statusAccent) instead of the
+  // accent, such as red for an ended show.
+  dynamicColor?: boolean;
+}
+
+// The badge layout series cards use when it differs from movies'. The look
+// (preset and style) stays shared.
+export interface OverlaySeriesLayout {
+  order: OverlayId[];
+  items: Record<OverlayId, OverlayItemConfig>;
 }
 
 export type PresetId = "minimal" | "classic" | "vibrant" | "pill" | "square" | "plate" | "band";
@@ -134,6 +152,8 @@ export interface CardOverlayPrefs {
   style?: OverlayStyle;
   order: OverlayId[]; // empty = use registry order
   items: Record<OverlayId, OverlayItemConfig>;
+  // Absent: series cards use the layout above.
+  series?: OverlaySeriesLayout;
 }
 
 // An image an administrator uploaded for badges, as getOverlayConfig lists it.
@@ -187,6 +207,13 @@ export interface OverlayPreset {
   accentStrategy: AccentStrategy;
 }
 
+// One piece of a badge drawn from parts while its icon setting is on: a
+// bundled logo, or text. A score part carries its fraction of the scale's top,
+// and draws as a pill coloured by how good it is.
+export type BadgePart =
+  | { kind: "logo"; src: string; alt: string }
+  | { kind: "text"; text: string; scoreFraction?: number };
+
 // Registry entry describing one overlay type.
 export interface OverlayDef {
   id: OverlayId;
@@ -219,9 +246,15 @@ export interface OverlayDef {
   // Value keys the settings UI suggests when assigning per-value images.
   valueKeySuggestions?: readonly string[];
   getIcon?: (data: OverlayData) => OverlayIconId | null; // dynamic icon by data
+  // Logo parts drawn in place of the label while the icon setting is on;
+  // null keeps the label (no bundled logo for this value).
+  getParts?: (data: OverlayData) => BadgePart[] | null;
   // Accent by data, used when the viewer has not picked an accent for the
   // badge; null falls back to defaultAccent.
   getAccent?: (data: OverlayData) => string | null;
+  // A colour by value, used in place of the accent when the viewer turns on
+  // the badge's dynamicColor; null keeps the usual colour.
+  statusAccent?: (data: OverlayData) => string | null;
 }
 
 // Typed icon identifiers — every icon used anywhere must be in this union.
