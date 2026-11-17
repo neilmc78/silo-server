@@ -465,6 +465,12 @@ func (h *SettingValuesHandler) writeSettingValue(
 	if apiErr != nil {
 		return settingMutationResult{}, apiErr
 	}
+	// The administrator alone sets an admin-owned setting, through the
+	// server-wide defaults. Clearing a stored value stays allowed.
+	if settingskeys.AdminOwned(identity.Key) && identity.Scope != settingscontract.ScopeDefault {
+		return settingMutationResult{}, codedFieldError(http.StatusBadRequest, settingErrorScopeDenied,
+			settingFieldScope, identity.Key+" is set by the server administrator")
+	}
 	if len(rawValue) == 0 {
 		return settingMutationResult{}, fieldError(settingFieldValue, "value is required")
 	}
