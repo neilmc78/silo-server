@@ -235,6 +235,7 @@ describe("InterfaceSettings", () => {
     expect(screen.queryByRole("list", { name: "Menu links" })).not.toBeInTheDocument();
     expect(setMutateAsync).not.toHaveBeenCalled();
     expect(clearMutateAsync).not.toHaveBeenCalled();
-    expect(screen.getByRole("region", { name: "Card overlays" })).toBeInTheDocument();
+    // Poster badges and card shortcuts are admin-only in this fork.
+    expect(screen.queryByRole("region", { name: "Card overlays" })).not.toBeInTheDocument();
   });
 });
