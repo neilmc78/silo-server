@@ -217,6 +217,31 @@ describe("activity playback scopes", () => {
     }
   });
 
+  it("keeps the route in a session's details when the table has no route column", () => {
+    // One route for every session: the table drops its Route column, so the
+    // details are the only place the route badges appear.
+    mocks.sessions = [makeSession()];
+    renderActivity();
+    fireEvent.click(screen.getAllByRole("button", { name: "Details" })[0]!);
+    const hiddenInTable = [...document.querySelectorAll("dt")]
+      .filter((dt) => dt.textContent === "Route")
+      .filter((dt) => /@min-\[\d+rem\]:hidden/.test(dt.closest("dl")!.className));
+    expect(hiddenInTable).toEqual([]);
+  });
+
+  it("toggles a session's details from a click on the row but not on its links", () => {
+    mocks.sessions = [makeSession({ content_id: "example-item" })];
+    renderActivity();
+    const expand = screen.getAllByRole("button", { name: "Details" })[0]!;
+
+    fireEvent.click(screen.getAllByText("Example movie")[0]!);
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(screen.getAllByText("2160p", { exact: false })[0]!);
+    expect(expand).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getAllByText("2160p", { exact: false })[0]!);
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("does not collapse distinct server sessions just because their display fields match", () => {
     mocks.sessions = [makeSession(), makeSession({ session_id: "another-session" })];
     renderActivity();

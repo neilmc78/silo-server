@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router";
 import { AdminSessionActions } from "@/components/AdminSessionActions";
@@ -10,7 +10,15 @@ import { useOperationalLogs } from "@/hooks/queries/admin/logs";
 import { usePageActivity } from "@/hooks/usePageActivity";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { AdminSession, OperationalLogEntry, IPUserEntry } from "@/api/types";
 import { useIPUsers } from "@/hooks/queries/admin/ips";
@@ -35,6 +43,7 @@ import {
   getAudioConversion,
   getPlaybackProgress,
   getPlaybackSessionSubtitle,
+  getSessionBitrate,
   getSessionClientLabel,
   getSessionClientLabelFull,
   getSessionRouteNodes,
@@ -57,6 +66,7 @@ import {
 } from "@/components/ui/table";
 import {
   AudioLines,
+  ChevronDown,
   ChevronRight,
   Clock,
   FileText,
@@ -75,7 +85,7 @@ import { formatLocale, joinList } from "@/lib/appLocale";
 import { codeNumber, englishText, numberText, type TextValues, type Translate, useT } from "@/i18n";
 import type { MessageKey } from "@/locales/keys";
 
-type SortField = "username" | "media" | "method" | "node" | "started";
+type SortField = "username" | "media" | "method" | "bitrate" | "node" | "started";
 type SortDir = "asc" | "desc";
 
 const REFRESH_SPINNER_MIN_VISIBLE_MS = 1_000;
@@ -96,29 +106,124 @@ interface TableLayout {
   table: string;
   /** Classes that show an element only in the stacked layout. */
   stacked: string;
+  /** Classes that put a row's details in three columns in the table layout. */
+  panel: string;
+  /** Classes that rule off the second and third details columns. */
+  panelColumn: string;
 }
 
 const TABLE_LAYOUT: TableLayout = {
   columns:
-    "grid-cols-[1.75rem_minmax(13rem,1.5fr)_minmax(9.5rem,1fr)_minmax(17rem,2.3fr)_5.5rem_auto]",
-  table: "hidden @min-[58rem]:grid",
-  stacked: "@min-[58rem]:hidden",
+    "grid-cols-[1.75rem_minmax(13rem,1.5fr)_minmax(9.5rem,1fr)_minmax(14rem,1.6fr)_minmax(7rem,1fr)_4.5rem_auto]",
+  table: "hidden @min-[62rem]:grid",
+  stacked: "@min-[62rem]:hidden",
+  panel: "@min-[62rem]:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)]",
+  panelColumn: "@min-[62rem]:border-border/40 @min-[62rem]:border-s @min-[62rem]:ps-5",
 };
 
 const TABLE_LAYOUT_WITH_ROUTE: TableLayout = {
   columns:
-    "grid-cols-[1.75rem_minmax(13rem,1.5fr)_minmax(9.5rem,1fr)_minmax(17rem,2.3fr)_minmax(7rem,1fr)_5.5rem_auto]",
-  table: "hidden @min-[66rem]:grid",
-  stacked: "@min-[66rem]:hidden",
+    "grid-cols-[1.75rem_minmax(13rem,1.5fr)_minmax(9.5rem,1fr)_minmax(14rem,1.6fr)_minmax(7rem,1fr)_minmax(7rem,1fr)_4.5rem_auto]",
+  table: "hidden @min-[70rem]:grid",
+  stacked: "@min-[70rem]:hidden",
+  panel: "@min-[70rem]:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_minmax(0,1fr)]",
+  panelColumn: "@min-[70rem]:border-border/40 @min-[70rem]:border-s @min-[70rem]:ps-5",
 };
 
 const STACKED_SORT_FIELDS: [SortField, MessageKey][] = [
   ["username", "web.admin.activity.column.user"],
   ["media", "web.admin.activity.column.stream"],
   ["method", "web.admin.activity.column.playback"],
+  ["bitrate", "web.admin.activity.column.bitrate"],
   ["node", "web.admin.activity.column.route"],
   ["started", "web.admin.activity.column.time"],
 ];
+
+// Filter controls: a segmented group per filter, so one choice per group reads
+// as one control instead of a run of loose chips. The 1px gap shows the group's
+// border color between segments, which keeps the dividers right when a narrow
+// screen wraps a group onto two lines. The active segment's tint sits over it.
+const SEGMENTED_GROUP_CLASS =
+  "border-border bg-border inline-flex max-w-full flex-wrap gap-px overflow-hidden rounded-md border";
+
+function segmentClass(active: boolean): string {
+  return `focus-visible:ring-ring inline-flex h-[30px] grow items-center justify-center gap-1.5 px-2.5 text-[12px] font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset ${
+    active
+      ? "bg-primary/10 text-foreground"
+      : "bg-surface text-muted-foreground hover:bg-secondary hover:text-foreground"
+  }`;
+}
+
+const NODE_KIND_ORDER: ActivityRouteNode["kind"][] = ["proxy", "transcode", "server", "legacy"];
+
+/**
+ * The node filter is a menu, not a chip per node: the list grows with the
+ * cluster, and a row of chips would wrap the toolbar on a large deployment.
+ */
+function NodeFilterMenu({
+  nodes,
+  selected,
+  onSelect,
+}: {
+  nodes: (ActivityRouteNode & { count: number })[];
+  selected: string | null;
+  onSelect: (key: string | null) => void;
+}) {
+  const t = useT();
+  const selectedNode = nodes.find((node) => node.key === selected);
+  const groups = NODE_KIND_ORDER.map((kind) =>
+    nodes.filter((node) => node.kind === kind).sort((a, b) => b.count - a.count),
+  ).filter((group) => group.length > 0);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={`focus-visible:ring-ring inline-flex h-8 max-w-full items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium whitespace-nowrap transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+          selectedNode
+            ? "border-primary/40 bg-primary/10 text-foreground"
+            : "border-border bg-surface text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        {selectedNode ? (
+          <>
+            <span className="text-muted-foreground">{selectedNode.label}</span>
+            <span className="truncate">{selectedNode.name}</span>
+          </>
+        ) : (
+          t("web.admin.activity.route.node")
+        )}
+        <ChevronDown className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        aria-label={t("web.admin.activity.summary.byNode")}
+        className="min-w-56"
+      >
+        {groups.map((group, index) => (
+          <div key={group[0]!.kind} role="group" aria-label={group[0]!.label}>
+            {index > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuLabel className="text-muted-foreground text-[11px] font-medium">
+              {group[0]!.label}
+            </DropdownMenuLabel>
+            {group.map((node) => (
+              <DropdownMenuCheckboxItem
+                key={node.key}
+                checked={node.key === selected}
+                onCheckedChange={(checked) => onSelect(checked ? node.key : null)}
+                className="text-[13px]"
+              >
+                <span className="truncate">{node.name}</span>
+                <span className="text-muted-foreground ms-auto ps-4 tabular-nums">
+                  {numberText(node.count)}
+                </span>
+              </DropdownMenuCheckboxItem>
+            ))}
+          </div>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 // Sort keys and search compare English text (and the shown text, for search),
 // so a language change neither reorders rows nor loses a typed English query.
@@ -261,6 +366,9 @@ export default function AdminActivity() {
         case "method":
           cmp = compareActivityMethods(classifyActivityMethod(a), classifyActivityMethod(b));
           break;
+        case "bitrate":
+          cmp = (a.stream_bitrate_kbps ?? 0) - (b.stream_bitrate_kbps ?? 0);
+          break;
         case "node":
           cmp = routeSortValue(a).localeCompare(routeSortValue(b));
           break;
@@ -280,7 +388,7 @@ export default function AdminActivity() {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
-      setSortDir(field === "started" ? "desc" : "asc");
+      setSortDir(field === "started" || field === "bitrate" ? "desc" : "asc");
     }
   };
 
@@ -329,13 +437,6 @@ export default function AdminActivity() {
           .filter(Boolean)
           .join(` ${MIDDLE_DOT} `);
 
-  const chipClass = (active: boolean, dimmed: boolean) =>
-    `inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] font-medium transition-colors ${
-      active
-        ? "border-primary/40 bg-primary/10 text-foreground"
-        : "border-border bg-surface text-muted-foreground hover:text-foreground"
-    } ${dimmed ? "opacity-50" : ""}`;
-
   return (
     <div className="space-y-4">
       <PageHeader
@@ -344,6 +445,17 @@ export default function AdminActivity() {
         actions={
           <>
             <RealtimeStatus state={connectionState} />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIPLookupSeed("");
+                setIPLookupOpen(true);
+              }}
+            >
+              <Globe className="h-3.5 w-3.5" />
+              {t("web.admin.activity.ipLookup.heading")}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -364,14 +476,14 @@ export default function AdminActivity() {
 
       {/* Search + filters */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[200px] flex-1">
+        <div className="relative w-full sm:w-80">
           <Search className="text-muted-foreground pointer-events-none absolute start-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
             placeholder={t("web.admin.activity.filter.placeholder")}
             aria-label={t("web.admin.activity.filter.placeholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-8 ps-9 text-[13px]"
+            className="h-8 ps-9 pe-8 text-[13px]"
           />
           {search && (
             <button
@@ -388,7 +500,7 @@ export default function AdminActivity() {
           <div
             role="group"
             aria-label={t("web.admin.activity.summary.methodHeading")}
-            className="flex flex-wrap gap-1"
+            className={SEGMENTED_GROUP_CLASS}
           >
             {Object.entries(methods)
               .sort(([a], [b]) => compareActivityMethods(a, b))
@@ -405,10 +517,7 @@ export default function AdminActivity() {
                     })}
                     aria-pressed={methodFilter === method}
                     onClick={() => setMethodFilter(methodFilter === method ? null : method)}
-                    className={chipClass(
-                      methodFilter === method,
-                      methodFilter !== null && methodFilter !== method,
-                    )}
+                    className={segmentClass(methodFilter === method)}
                   >
                     <span
                       aria-hidden="true"
@@ -421,14 +530,14 @@ export default function AdminActivity() {
               })}
           </div>
         )}
-        <div className="flex gap-1">
+        <div className={SEGMENTED_GROUP_CLASS}>
           {(["movie", "series"] as const).map((type) => (
             <button
               key={type}
               type="button"
               aria-pressed={typeFilter === type}
               onClick={() => setTypeFilter(typeFilter === type ? null : type)}
-              className={chipClass(typeFilter === type, false)}
+              className={segmentClass(typeFilter === type)}
             >
               {type === "movie"
                 ? t("web.admin.activity.filter.movies")
@@ -437,32 +546,7 @@ export default function AdminActivity() {
           ))}
         </div>
         {routeNodes.length > 1 && (
-          <div
-            role="group"
-            aria-label={t("web.admin.activity.summary.byNode")}
-            className="flex flex-wrap gap-1"
-          >
-            {[...routeNodes]
-              .sort((a, b) => b.count - a.count)
-              .map((node) => (
-                <button
-                  key={node.key}
-                  type="button"
-                  aria-pressed={nodeFilter === node.key}
-                  onClick={() => setNodeFilter(nodeFilter === node.key ? null : node.key)}
-                  className={chipClass(
-                    nodeFilter === node.key,
-                    nodeFilter !== null && nodeFilter !== node.key,
-                  )}
-                >
-                  <span className="text-muted-foreground">{node.label}</span>
-                  {node.name}
-                  <span className="text-muted-foreground tabular-nums">
-                    {numberText(node.count)}
-                  </span>
-                </button>
-              ))}
-          </div>
+          <NodeFilterMenu nodes={routeNodes} selected={nodeFilter} onSelect={setNodeFilter} />
         )}
         {activeFilters > 0 && (
           <button
@@ -478,18 +562,6 @@ export default function AdminActivity() {
             {t("web.admin.activity.filter.clear")}
           </button>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="ms-auto"
-          onClick={() => {
-            setIPLookupSeed("");
-            setIPLookupOpen(true);
-          }}
-        >
-          <Globe className="h-3.5 w-3.5" />
-          {t("web.admin.activity.ipLookup.heading")}
-        </Button>
       </div>
 
       {/* Filter status */}
@@ -545,6 +617,9 @@ export default function AdminActivity() {
             </SortHeader>
             <SortHeader field="method" current={sortField} dir={sortDir} onClick={toggleSort}>
               {t("web.admin.activity.column.playback")}
+            </SortHeader>
+            <SortHeader field="bitrate" current={sortField} dir={sortDir} onClick={toggleSort}>
+              {t("web.admin.activity.column.bitrate")}
             </SortHeader>
             {showRoute && (
               <SortHeader field="node" current={sortField} dir={sortDir} onClick={toggleSort}>
@@ -647,6 +722,18 @@ function StreamRow({
     });
   };
   const openDetails = () => setDetailsOpen(true);
+  // A click anywhere on the row toggles its details, as a mouse shortcut for
+  // the expand button (which stays the keyboard and screen-reader control).
+  // Clicks on the row's own links and buttons keep their meaning, as do
+  // clicks that end a text selection and clicks inside portaled menus and
+  // dialogs, which React bubbles here though they sit outside the row.
+  const onRowClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const target = event.target as Element;
+    if (!event.currentTarget.contains(target)) return;
+    if (target.closest("a, button, input, select, textarea, label, [role='button']")) return;
+    if (window.getSelection()?.type === "Range") return;
+    toggleDetails();
+  };
   const toggleFFmpeg = () => {
     setFFmpegOpen((open) => {
       const nextOpen = !open;
@@ -701,7 +788,8 @@ function StreamRow({
     <div className="border-border/40 border-b last:border-b-0">
       {/* Table row */}
       <div
-        className={`${layout.table} ${layout.columns} hover:bg-surface/40 items-center gap-3 px-3 py-2 transition-colors`}
+        onClick={onRowClick}
+        className={`${layout.table} ${layout.columns} hover:bg-surface/40 cursor-pointer items-center gap-3 px-3 py-2 transition-colors`}
       >
         {expandButton}
         <MediaCell session={session} />
@@ -717,6 +805,7 @@ function StreamRow({
           <ConversionLine kind="video" session={session} />
           <ConversionLine kind="audio" session={session} />
         </div>
+        <BitrateCell session={session} />
         {showRoute && (
           <div className="flex min-w-0 flex-wrap gap-1">
             <PlaybackRouteBadges session={session} showLocation={false} />
@@ -747,7 +836,7 @@ function StreamRow({
       </div>
 
       {/* Stacked card */}
-      <div className={`${layout.stacked} flex gap-3 px-3 py-3`}>
+      <div onClick={onRowClick} className={`${layout.stacked} flex cursor-pointer gap-3 px-3 py-3`}>
         <Poster session={session} size="stacked" />
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-start gap-2">
@@ -802,7 +891,8 @@ function StreamRow({
           id={panelId}
           session={session}
           reasons={reasons}
-          stackedOnly={layout.stacked}
+          layout={layout}
+          showRoute={showRoute}
           onIPLookup={onIPLookup}
           ffmpegOpen={ffmpegOpen}
           onToggleFFmpeg={toggleFFmpeg}
@@ -1064,7 +1154,6 @@ function ConversionLine({ kind, session }: { kind: "video" | "audio"; session: A
 
 function SessionCell({ session }: { session: AdminSession }) {
   const t = useT();
-  const bitrate = formatSessionBitrate(session.stream_bitrate_kbps);
   const elapsed = getElapsed(session.started_at);
   return (
     <div className="min-w-0 text-end">
@@ -1076,11 +1165,46 @@ function SessionCell({ session }: { session: AdminSession }) {
         <span className="sr-only">{t("web.admin.activity.row.sessionActive", { elapsed })}</span>
         <span aria-hidden="true">{elapsed}</span>
       </div>
-      {bitrate ? (
-        <div className="text-muted-foreground text-[11px] tabular-nums">{bitrate}</div>
+    </div>
+  );
+}
+
+/**
+ * The rate the viewer receives now, over the source's bitrate and, for a
+ * transcode, the ceiling it encodes to. The bar is the delivered share of the
+ * source: full for an untouched file, short when the route squeezes it.
+ */
+function BitrateCell({ session }: { session: AdminSession }) {
+  const t = useT();
+  const { live, source, limit, share } = getSessionBitrate(session);
+  const reference = bitrateReference(t, limit, source);
+  return (
+    <div className="min-w-0 tabular-nums">
+      {live ? <div className="truncate text-[12px]">{live}</div> : null}
+      {reference ? (
+        <div className="text-muted-foreground text-[11px] leading-snug">{reference}</div>
+      ) : null}
+      {share !== null ? (
+        <div
+          aria-hidden="true"
+          className="bg-border mt-1 h-1 max-w-32 overflow-hidden rounded-full"
+        >
+          <div
+            className={`h-full rounded-full ${limit ? "bg-warning" : "bg-success"}`}
+            style={{ width: `${share * 100}%` }}
+          />
+        </div>
       ) : null}
     </div>
   );
+}
+
+/** What the delivered rate is measured against: a transcode's limit, the source, or both. */
+function bitrateReference(t: Translate, limit: string | null, source: string | null): string {
+  if (limit && source) return t("web.admin.activity.bitrate.limitAndSource", { limit, source });
+  if (limit) return t("web.admin.activity.bitrate.limit", { rate: limit });
+  if (source) return t("web.admin.activity.bitrate.source", { rate: source });
+  return "";
 }
 
 function ActivityMethodBadge({ method }: { method: string }) {
@@ -1101,7 +1225,8 @@ function PlaybackExpandedPanel({
   id,
   session,
   reasons,
-  stackedOnly,
+  layout,
+  showRoute,
   onIPLookup,
   ffmpegOpen,
   onToggleFFmpeg,
@@ -1113,8 +1238,9 @@ function PlaybackExpandedPanel({
   id: string;
   session: AdminSession;
   reasons: AdaptationReason[];
-  /** Classes that show an element only in the stacked layout. */
-  stackedOnly: string;
+  layout: TableLayout;
+  /** Whether the table row has a route column. */
+  showRoute: boolean;
   onIPLookup: (ip: string) => void;
   ffmpegOpen: boolean;
   onToggleFFmpeg: () => void;
@@ -1132,117 +1258,180 @@ function PlaybackExpandedPanel({
   const transcodeMode = formatTranscodeModeSummary(session);
   const toneMap = formatToneMapSummary(session);
   const clientIP = session.client_ip?.trim() || "";
-  const bitrate = formatSessionBitrate(session.stream_bitrate_kbps);
+  const bitrate = getSessionBitrate(session);
   const clientLabel = getSessionClientLabelFull(session) || t("web.admin.activity.client.unknown");
   const userAgent = session.client_user_agent?.trim() || "";
+  const devicePlatform = session.device_platform?.trim() || "";
+  const deviceID = session.device_id?.trim() || "";
 
   return (
     <div id={id} className="border-border/40 bg-surface/30 space-y-4 border-t px-4 py-3">
-      <dl className={FACT_LIST_CLASS}>
-        <dt className="text-muted-foreground">{t("web.admin.activity.panel.decision")}</dt>
-        <dd className="min-w-0">
-          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <ActivityMethodBadge method={method} />
-            <span>{activityMethodMeta(method).description}</span>
-          </span>
-        </dd>
-        {reasons.length > 0 ? (
-          <>
-            <dt className="text-muted-foreground">{t("web.admin.activity.panel.reasons")}</dt>
+      <div className={`grid gap-x-5 gap-y-4 text-[12px] ${layout.panel}`}>
+        <div className="min-w-0 space-y-4">
+          <dl className={FACT_LIST_CLASS}>
+            <dt className="text-muted-foreground">{t("web.admin.activity.panel.decision")}</dt>
             <dd className="min-w-0">
-              <ul className="space-y-0.5">
-                {reasons.map((reason) => (
-                  <li key={reason.code} className="flex flex-col leading-snug sm:block">
-                    <span className="font-medium">{reason.label}</span>
-                    <span className="text-muted-foreground sm:ms-2">{reason.description}</span>
-                  </li>
-                ))}
-              </ul>
+              <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <ActivityMethodBadge method={method} />
+                <span>{activityMethodMeta(method).description}</span>
+              </span>
             </dd>
-          </>
-        ) : null}
-      </dl>
+            {reasons.length > 0 ? (
+              <>
+                <dt className="text-muted-foreground">{t("web.admin.activity.panel.reasons")}</dt>
+                <dd className="min-w-0">
+                  <ul className="space-y-0.5">
+                    {reasons.map((reason) => (
+                      <li key={reason.code} className="flex flex-col leading-snug sm:block">
+                        <span className="font-medium">{reason.label}</span>
+                        <span className="text-muted-foreground sm:ms-2">{reason.description}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </dd>
+              </>
+            ) : null}
+          </dl>
 
-      <table className="w-full max-w-3xl text-start text-[12px]">
-        <thead>
-          <tr className="text-muted-foreground">
-            <th scope="col" className="pb-1 text-start font-normal sm:w-36">
-              <span className="sr-only">{t("web.admin.activity.panel.streamDetails")}</span>
-            </th>
-            <th scope="col" className="pb-1 text-start font-normal">
-              {t("web.admin.activity.detail.source")}
-            </th>
-            <th scope="col" className="pb-1 text-start font-normal">
-              {t("web.admin.activity.detail.delivered")}
-            </th>
-          </tr>
-        </thead>
-        <tbody className="align-top">
-          <StreamDetailRow
-            label={t("web.admin.activity.row.video")}
-            decision={videoDecision}
-            source={formatVideoSummary(session)}
-            delivered={formatDeliveredVideoSummary(session)}
-            tags={[
-              ...(videoDecision === "transcode" ? [transcodeMode, toneMap?.badge] : []),
-              formatRequestedSourceSwitch(session),
-            ]}
-          />
-          <StreamDetailRow
-            label={t("web.admin.activity.row.audio")}
-            decision={audioDecision}
-            source={formatAudioSummary(session)}
-            delivered={formatDeliveredAudioSummary(session)}
-            tags={
-              audioDecision === "transcode" && videoDecision !== "transcode" ? [transcodeMode] : []
-            }
-          />
-          <StreamDetailRow
-            label={t("web.admin.activity.row.container")}
-            decision={normalizeContainerDecision(session.play_method)}
-            source={formatSourceContainerSummary(session)}
-            delivered={formatDeliveredContainerSummary(session)}
-            tags={[]}
-          />
-        </tbody>
-      </table>
+          <table className="w-full text-start">
+            <thead>
+              <tr className="text-muted-foreground">
+                <th scope="col" className="pb-1 text-start font-normal sm:w-36">
+                  <span className="sr-only">{t("web.admin.activity.panel.streamDetails")}</span>
+                </th>
+                <th scope="col" className="pb-1 text-start font-normal">
+                  {t("web.admin.activity.detail.source")}
+                </th>
+                <th scope="col" className="pb-1 text-start font-normal">
+                  {t("web.admin.activity.detail.delivered")}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="align-top">
+              <StreamDetailRow
+                label={t("web.admin.activity.row.video")}
+                decision={videoDecision}
+                source={formatVideoSummary(session)}
+                delivered={formatDeliveredVideoSummary(session)}
+                tags={[
+                  ...(videoDecision === "transcode" ? [transcodeMode, toneMap?.badge] : []),
+                  formatRequestedSourceSwitch(session),
+                ]}
+              />
+              <StreamDetailRow
+                label={t("web.admin.activity.row.audio")}
+                decision={audioDecision}
+                source={formatAudioSummary(session)}
+                delivered={formatDeliveredAudioSummary(session)}
+                tags={
+                  audioDecision === "transcode" && videoDecision !== "transcode"
+                    ? [transcodeMode]
+                    : []
+                }
+              />
+              <StreamDetailRow
+                label={t("web.admin.activity.row.container")}
+                decision={normalizeContainerDecision(session.play_method)}
+                source={formatSourceContainerSummary(session)}
+                delivered={formatDeliveredContainerSummary(session)}
+                tags={[]}
+              />
+              {bitrate.live || bitrate.source ? (
+                <StreamDetailRow
+                  label={t("web.admin.activity.column.bitrate")}
+                  source={bitrate.source ?? ""}
+                  delivered={bitrate.live ?? ""}
+                  tags={[
+                    bitrate.limit
+                      ? t("web.admin.activity.bitrate.limit", { rate: bitrate.limit })
+                      : null,
+                  ]}
+                />
+              ) : null}
+            </tbody>
+          </table>
+        </div>
 
-      <dl className={FACT_LIST_CLASS}>
-        <dt className="text-muted-foreground">{t("web.admin.activity.client.heading")}</dt>
-        <dd className="min-w-0">
-          <div className="break-words">{clientLabel}</div>
-          {userAgent ? (
-            <div className="text-muted-foreground text-[11px] break-words">{userAgent}</div>
-          ) : null}
-        </dd>
-        <dt className="text-muted-foreground">{t("web.admin.activity.column.route")}</dt>
-        <dd className="flex min-w-0 flex-wrap items-center gap-1">
-          <PlaybackRouteBadges session={session} />
-          {clientIP ? (
-            <button
-              type="button"
-              onClick={() => onIPLookup(clientIP)}
-              className="hover:text-primary ms-1 tabular-nums transition-colors"
+        <section className={`min-w-0 ${layout.panelColumn}`}>
+          <h3 className={PANEL_HEADING_CLASS}>{t("web.admin.activity.client.heading")}</h3>
+          <dl className={SIDE_FACT_LIST_CLASS}>
+            <dt className="text-muted-foreground">{t("web.admin.activity.client.app")}</dt>
+            <dd className="min-w-0 break-words">{clientLabel}</dd>
+            {devicePlatform || deviceID ? (
+              <>
+                <dt className="text-muted-foreground">{t("web.admin.activity.client.device")}</dt>
+                <dd className="min-w-0">
+                  {devicePlatform ? <div className="break-words">{devicePlatform}</div> : null}
+                  {deviceID ? (
+                    <div className="text-muted-foreground font-mono text-[11px] break-all">
+                      {deviceID}
+                    </div>
+                  ) : null}
+                </dd>
+              </>
+            ) : null}
+            {userAgent ? (
+              <>
+                <dt className="text-muted-foreground">{t("web.admin.activity.client.agent")}</dt>
+                <dd className="text-muted-foreground min-w-0 text-[11px] break-words">
+                  {userAgent}
+                </dd>
+              </>
+            ) : null}
+          </dl>
+          {/* A table row with a route column already shows the route. */}
+          <dl className={`${SIDE_FACT_LIST_CLASS} ${showRoute ? layout.stacked : ""} mt-1`}>
+            <dt className="text-muted-foreground">{t("web.admin.activity.column.route")}</dt>
+            <dd className="flex min-w-0 flex-wrap items-center gap-1">
+              <PlaybackRouteBadges session={session} />
+              {clientIP ? (
+                <button
+                  type="button"
+                  onClick={() => onIPLookup(clientIP)}
+                  className="hover:text-primary ms-1 tabular-nums transition-colors"
+                >
+                  {clientIP}
+                </button>
+              ) : null}
+            </dd>
+          </dl>
+        </section>
+
+        <section className={`min-w-0 ${layout.panelColumn}`}>
+          <h3 className={PANEL_HEADING_CLASS}>{t("web.admin.activity.session.heading")}</h3>
+          <dl className={SIDE_FACT_LIST_CLASS}>
+            <dt className="text-muted-foreground">{t("web.admin.activity.session.started")}</dt>
+            <dd className="min-w-0 tabular-nums">
+              {t("web.admin.activity.session.startedAgo", {
+                time: formatTime(session.started_at),
+                elapsed: getElapsed(session.started_at),
+              })}
+            </dd>
+            <dt className="text-muted-foreground">{t("web.admin.activity.session.lastReport")}</dt>
+            <dd className="min-w-0 tabular-nums">
+              {t("web.admin.activity.session.lastReportAgo", {
+                elapsed: getElapsed(session.updated_at),
+              })}
+            </dd>
+            <dt className="text-muted-foreground">
+              {t("web.admin.activity.session.remoteControl")}
+            </dt>
+            <dd
+              className={`min-w-0 ${session.has_playback_control ? "" : "text-muted-foreground"}`}
             >
-              {clientIP}
-            </button>
-          ) : null}
-          {bitrate ? (
-            <span className="text-muted-foreground ms-1 tabular-nums">{bitrate}</span>
-          ) : null}
-        </dd>
-        <dt className="text-muted-foreground">{t("web.admin.activity.panel.heading")}</dt>
-        <dd className="min-w-0">
-          <div>
-            {t("web.admin.activity.row.sessionActive", { elapsed: getElapsed(session.started_at) })}
-          </div>
-          <div className="text-muted-foreground font-mono text-[11px] break-all">
-            {session.session_id}
-          </div>
-        </dd>
-      </dl>
+              {session.has_playback_control
+                ? t("web.admin.activity.session.remoteControlAvailable")
+                : t("web.admin.activity.session.remoteControlUnavailable")}
+            </dd>
+            <dt className="text-muted-foreground">{t("web.admin.activity.session.id")}</dt>
+            <dd className="text-muted-foreground min-w-0 font-mono text-[11px] break-all">
+              {session.session_id}
+            </dd>
+          </dl>
+        </section>
+      </div>
 
-      <div className={`${stackedOnly} flex flex-wrap gap-2`}>
+      <div className={`${layout.stacked} flex flex-wrap gap-2`}>
         <Button variant="outline" size="sm" onClick={onToggleFFmpeg}>
           <Terminal className="h-3.5 w-3.5" />
           {ffmpegOpen ? t("web.admin.activity.row.hideFfmpeg") : t("web.admin.activity.row.ffmpeg")}
@@ -1261,10 +1450,12 @@ function PlaybackExpandedPanel({
   );
 }
 
-// The expanded details' label/value lists share one label column, so the
-// decision, the stream table and the client facts line up.
-const FACT_LIST_CLASS =
-  "grid max-w-3xl grid-cols-[6rem_1fr] gap-y-1 text-[12px] sm:grid-cols-[9rem_1fr] [&>dt]:pe-3";
+// The decision list and the stream table share one label column, so they line
+// up; the client and session lists sit in narrower columns beside them.
+const FACT_LIST_CLASS = "grid grid-cols-[6rem_1fr] gap-y-1 sm:grid-cols-[9rem_1fr] [&>dt]:pe-3";
+const SIDE_FACT_LIST_CLASS =
+  "grid grid-cols-[6rem_1fr] gap-y-1 sm:grid-cols-[7rem_1fr] [&>dt]:pe-3";
+const PANEL_HEADING_CLASS = "text-muted-foreground mb-1.5 text-[11px] font-medium";
 
 function StreamDetailRow({
   label,
@@ -1274,7 +1465,8 @@ function StreamDetailRow({
   tags,
 }: {
   label: string;
-  decision: string;
+  /** Absent for a row that compares values rather than a stream the route handles. */
+  decision?: string;
   source: string;
   delivered: string;
   tags: (string | null | undefined)[];
@@ -1284,11 +1476,13 @@ function StreamDetailRow({
       <th scope="row" className="py-0.5 pe-3 text-start font-normal">
         <span className="inline-flex items-center gap-1.5">
           <span>{label}</span>
-          <span
-            className={`inline-flex rounded border px-1 py-0.5 text-[10px] leading-none font-semibold ${decisionBadgeClass(decision)}`}
-          >
-            {formatDecisionLabel(decision)}
-          </span>
+          {decision ? (
+            <span
+              className={`inline-flex rounded border px-1 py-0.5 text-[10px] leading-none font-semibold ${decisionBadgeClass(decision)}`}
+            >
+              {formatDecisionLabel(decision)}
+            </span>
+          ) : null}
         </span>
       </th>
       <td className="text-muted-foreground py-0.5 pe-3 break-words">{source}</td>

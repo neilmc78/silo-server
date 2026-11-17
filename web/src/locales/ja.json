@@ -3432,6 +3432,16 @@
       "value": "再生できる項目がありません。"
     }
   ],
+  "signIn.withProvider": [
+    {
+      "type": 1,
+      "value": "provider"
+    },
+    {
+      "type": 0,
+      "value": "でサインイン"
+    }
+  ],
   "subtitleSearch.hearingImpaired": [
     {
       "type": 0,
@@ -6414,6 +6424,44 @@
       "value": "version"
     }
   ],
+  "web.admin.activity.bitrate.limit": [
+    {
+      "type": 0,
+      "value": "上限"
+    },
+    {
+      "type": 1,
+      "value": "rate"
+    }
+  ],
+  "web.admin.activity.bitrate.limitAndSource": [
+    {
+      "type": 0,
+      "value": "上限"
+    },
+    {
+      "type": 1,
+      "value": "limit"
+    },
+    {
+      "type": 0,
+      "value": " · ソース"
+    },
+    {
+      "type": 1,
+      "value": "source"
+    }
+  ],
+  "web.admin.activity.bitrate.source": [
+    {
+      "type": 0,
+      "value": "ソース"
+    },
+    {
+      "type": 1,
+      "value": "rate"
+    }
+  ],
   "web.admin.activity.client.agent": [
     {
       "type": 0,
@@ -6424,6 +6472,12 @@
     {
       "type": 0,
       "value": "アプリ"
+    }
+  ],
+  "web.admin.activity.client.device": [
+    {
+      "type": 0,
+      "value": "デバイス"
     }
   ],
   "web.admin.activity.client.heading": [
@@ -6442,6 +6496,12 @@
     {
       "type": 0,
       "value": "操作"
+    }
+  ],
+  "web.admin.activity.column.bitrate": [
+    {
+      "type": 0,
+      "value": "ビットレート"
     }
   ],
   "web.admin.activity.column.playback": [
@@ -6872,12 +6932,6 @@
     {
       "type": 0,
       "value": "イベント"
-    }
-  ],
-  "web.admin.activity.panel.heading": [
-    {
-      "type": 0,
-      "value": "再生"
     }
   ],
   "web.admin.activity.panel.loadingFfmpeg": [
@@ -7332,6 +7386,76 @@
     {
       "type": 0,
       "value": "ログを表示"
+    }
+  ],
+  "web.admin.activity.session.heading": [
+    {
+      "type": 0,
+      "value": "セッション"
+    }
+  ],
+  "web.admin.activity.session.id": [
+    {
+      "type": 0,
+      "value": "セッションID"
+    }
+  ],
+  "web.admin.activity.session.lastReport": [
+    {
+      "type": 0,
+      "value": "最終報告"
+    }
+  ],
+  "web.admin.activity.session.lastReportAgo": [
+    {
+      "type": 1,
+      "value": "elapsed"
+    },
+    {
+      "type": 0,
+      "value": "前"
+    }
+  ],
+  "web.admin.activity.session.remoteControl": [
+    {
+      "type": 0,
+      "value": "リモート操作"
+    }
+  ],
+  "web.admin.activity.session.remoteControlAvailable": [
+    {
+      "type": 0,
+      "value": "利用可能"
+    }
+  ],
+  "web.admin.activity.session.remoteControlUnavailable": [
+    {
+      "type": 0,
+      "value": "利用不可"
+    }
+  ],
+  "web.admin.activity.session.started": [
+    {
+      "type": 0,
+      "value": "開始"
+    }
+  ],
+  "web.admin.activity.session.startedAgo": [
+    {
+      "type": 1,
+      "value": "time"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "elapsed"
+    },
+    {
+      "type": 0,
+      "value": "前"
     }
   ],
   "web.admin.activity.sort.group": [
@@ -42832,6 +42956,30 @@
       "value": "保存中…"
     }
   ],
+  "web.admin.nodes.form.sourceAccess": [
+    {
+      "type": 0,
+      "value": "ソースへのアクセス"
+    }
+  ],
+  "web.admin.nodes.form.sourceAccessCore": [
+    {
+      "type": 0,
+      "value": "APIサーバー経由"
+    }
+  ],
+  "web.admin.nodes.form.sourceAccessHelp": [
+    {
+      "type": 0,
+      "value": "APIサーバー経由の場合、ノードにライブラリのマウントは不要ですが、ノードが読み込むすべてのデータがAPIサーバーを経由するため、APIサーバーにはそのための帯域幅が必要です。"
+    }
+  ],
+  "web.admin.nodes.form.sourceAccessLocal": [
+    {
+      "type": 0,
+      "value": "ノード上のライブラリマウント"
+    }
+  ],
   "web.admin.nodes.form.type": [
     {
       "type": 0,
@@ -43340,6 +43488,192 @@
     {
       "type": 0,
       "value": "ソフトウェア"
+    }
+  ],
+  "web.admin.nodes.key.close": [
+    {
+      "type": 0,
+      "value": "閉じる"
+    }
+  ],
+  "web.admin.nodes.key.copied": [
+    {
+      "type": 0,
+      "value": "コピーしました"
+    }
+  ],
+  "web.admin.nodes.key.copyFailed": [
+    {
+      "type": 0,
+      "value": "コピーできませんでした。テキストを選択して手動でコピーしてください。"
+    }
+  ],
+  "web.admin.nodes.key.copyKey": [
+    {
+      "type": 0,
+      "value": "キーをコピー"
+    }
+  ],
+  "web.admin.nodes.key.copySettings": [
+    {
+      "type": 0,
+      "value": "設定をコピー"
+    }
+  ],
+  "web.admin.nodes.key.coreUrlHelp": [
+    {
+      "type": 0,
+      "value": "ノードがこのサーバーに接続するためのアドレスです。APIサーバーが複数ある場合は、負荷分散されたアドレスを使用してください。"
+    }
+  ],
+  "web.admin.nodes.key.coreUrlLabel": [
+    {
+      "type": 0,
+      "value": "ノード用のサーバーアドレス"
+    }
+  ],
+  "web.admin.nodes.key.coreUrlMissing": [
+    {
+      "type": 0,
+      "value": "設定を完成させるには、サーバーアドレスを入力してください。"
+    }
+  ],
+  "web.admin.nodes.key.dialogTitle": [
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": "のキー"
+    }
+  ],
+  "web.admin.nodes.key.issue": [
+    {
+      "type": 0,
+      "value": "キーを発行"
+    }
+  ],
+  "web.admin.nodes.key.issueFor": [
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": "のキーを発行"
+    }
+  ],
+  "web.admin.nodes.key.issued": [
+    {
+      "type": 0,
+      "value": "キー発行済み"
+    }
+  ],
+  "web.admin.nodes.key.issuing": [
+    {
+      "type": 0,
+      "value": "キーを発行中…"
+    }
+  ],
+  "web.admin.nodes.key.keyLabel": [
+    {
+      "type": 0,
+      "value": "ノードキー"
+    }
+  ],
+  "web.admin.nodes.key.later": [
+    {
+      "type": 0,
+      "value": "今はしない"
+    }
+  ],
+  "web.admin.nodes.key.missing": [
+    {
+      "type": 0,
+      "value": "キーなし：キーが発行されるまで、このノードは処理を受け付けません"
+    }
+  ],
+  "web.admin.nodes.key.notShownAgain": [
+    {
+      "type": 0,
+      "value": "今すぐキーをコピーしてください。キーは再表示されません。紛失した場合は、キーをローテーションし、新しいキーでノードを再起動してください。"
+    }
+  ],
+  "web.admin.nodes.key.offer": [
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": "はキーを取得するまで処理を受け付けません。今すぐキーを発行して、ノードの起動に必要な設定を取得してください。"
+    }
+  ],
+  "web.admin.nodes.key.rotate": [
+    {
+      "type": 0,
+      "value": "キーをローテーション"
+    }
+  ],
+  "web.admin.nodes.key.rotateDescription": [
+    {
+      "type": 0,
+      "value": "現在のキーはすぐに使用できなくなります。ノードはこのサーバーとの接続を失い、実行中のストリームは失敗します。新しいキーで再起動するまで、ノードは処理を受け付けません。"
+    }
+  ],
+  "web.admin.nodes.key.rotateDrainHint": [
+    {
+      "type": 0,
+      "value": "ストリームの中断を避けるには、先にノードをドレインし、「ドレイン完了」と表示されてからキーをローテーションしてください。"
+    }
+  ],
+  "web.admin.nodes.key.rotateFor": [
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": "のキーをローテーション"
+    }
+  ],
+  "web.admin.nodes.key.rotateTitle": [
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": "のキーをローテーションしますか？"
+    }
+  ],
+  "web.admin.nodes.key.saved": [
+    {
+      "type": 0,
+      "value": "キーを保存しました"
+    }
+  ],
+  "web.admin.nodes.key.settingsHelp": [
+    {
+      "type": 0,
+      "value": "この2つの設定でノードを起動してください。すでに実行中のノードは、再起動するまで古いキーを使い続けます。"
+    }
+  ],
+  "web.admin.nodes.key.settingsLabel": [
+    {
+      "type": 0,
+      "value": "ノードの設定"
+    }
+  ],
+  "web.admin.nodes.key.unconfirmed": [
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": "の新しいキーを確認できませんでした。もう一度試す前にページを再読み込みしてください。キーが発行されていた場合、以前のキーはすでに使用できなくなっています。"
     }
   ],
   "web.admin.nodes.memory.noReading": [
@@ -76877,20 +77211,6 @@
       "value": "number"
     }
   ],
-  "web.audiobooks.chapters.count": [
-    {
-      "type": 0,
-      "value": "（"
-    },
-    {
-      "type": 1,
-      "value": "count"
-    },
-    {
-      "type": 0,
-      "value": "）"
-    }
-  ],
   "web.audiobooks.chapters.duration": [
     {
       "type": 1,
@@ -76915,34 +77235,76 @@
       "value": "チャプター"
     }
   ],
-  "web.audiobooks.chapters.listening": [
+  "web.audiobooks.chapters.leftInChapter": [
     {
       "type": 0,
-      "value": "再生中"
+      "value": "このチャプターの残り："
+    },
+    {
+      "type": 1,
+      "value": "time"
     }
   ],
-  "web.audiobooks.chapters.sort": [
+  "web.audiobooks.chapters.showAll": [
     {
       "type": 0,
-      "value": "並べ替え"
+      "value": "すべて表示（"
+    },
+    {
+      "type": 1,
+      "value": "count"
+    },
+    {
+      "type": 0,
+      "value": "）"
     }
   ],
-  "web.audiobooks.chapters.sortAria": [
+  "web.audiobooks.chapters.showFewer": [
     {
       "type": 0,
-      "value": "チャプターを並べ替え"
+      "value": "表示を減らす"
     }
   ],
-  "web.audiobooks.chapters.sortLongest": [
+  "web.audiobooks.detail.finished": [
     {
       "type": 0,
-      "value": "長い順"
+      "value": "聴き終わり"
     }
   ],
-  "web.audiobooks.chapters.sortPosition": [
+  "web.audiobooks.detail.length": [
     {
       "type": 0,
-      "value": "収録順"
+      "value": "再生時間"
+    }
+  ],
+  "web.audiobooks.detail.publisher": [
+    {
+      "type": 0,
+      "value": "出版社"
+    }
+  ],
+  "web.audiobooks.detail.released": [
+    {
+      "type": 0,
+      "value": "発行年"
+    }
+  ],
+  "web.audiobooks.detail.seriesBook": [
+    {
+      "type": 1,
+      "value": "series"
+    },
+    {
+      "type": 0,
+      "value": "、第"
+    },
+    {
+      "type": 1,
+      "value": "number"
+    },
+    {
+      "type": 0,
+      "value": "巻"
     }
   ],
   "web.audiobooks.duration.hours": [
@@ -77543,6 +77905,12 @@
       "pluralType": "cardinal"
     }
   ],
+  "web.audiobooks.hero.alsoListening": [
+    {
+      "type": 0,
+      "value": "ほかに聴いている本"
+    }
+  ],
   "web.audiobooks.hero.ariaLabel": [
     {
       "type": 0,
@@ -77581,38 +77949,6 @@
       "value": "total"
     }
   ],
-  "web.audiobooks.hero.chapterPositionTitled": [
-    {
-      "type": 0,
-      "value": "チャプター"
-    },
-    {
-      "type": 1,
-      "value": "index"
-    },
-    {
-      "type": 0,
-      "value": "/"
-    },
-    {
-      "type": 1,
-      "value": "total"
-    },
-    {
-      "type": 0,
-      "value": " · "
-    },
-    {
-      "type": 1,
-      "value": "chapter"
-    }
-  ],
-  "web.audiobooks.hero.eyebrow": [
-    {
-      "type": 0,
-      "value": "再生中"
-    }
-  ],
   "web.audiobooks.hero.listen": [
     {
       "type": 0,
@@ -77645,12 +77981,6 @@
     {
       "type": 0,
       "value": "再開"
-    }
-  ],
-  "web.audiobooks.narrator.heading": [
-    {
-      "type": 0,
-      "value": "ナレーター"
     }
   ],
   "web.audiobooks.narrator.narrationCount": [
@@ -77690,20 +78020,16 @@
       "value": "プレーヤーに戻る"
     }
   ],
-  "web.audiobooks.player.chapterNumber": [
-    {
-      "type": 0,
-      "value": "チャプター"
-    },
-    {
-      "type": 1,
-      "value": "number"
-    }
-  ],
   "web.audiobooks.player.close": [
     {
       "type": 0,
       "value": "プレーヤーを閉じる"
+    }
+  ],
+  "web.audiobooks.player.comingUp": [
+    {
+      "type": 0,
+      "value": "次のチャプター"
     }
   ],
   "web.audiobooks.player.faster": [
@@ -105972,6 +106298,30 @@
       "value": "マーカーを保存できませんでした"
     }
   ],
+  "web.notifications.inbox.dayOlder": [
+    {
+      "type": 0,
+      "value": "それ以前"
+    }
+  ],
+  "web.notifications.inbox.dayToday": [
+    {
+      "type": 0,
+      "value": "今日"
+    }
+  ],
+  "web.notifications.inbox.dayWeek": [
+    {
+      "type": 0,
+      "value": "過去7日間"
+    }
+  ],
+  "web.notifications.inbox.dayYesterday": [
+    {
+      "type": 0,
+      "value": "昨日"
+    }
+  ],
   "web.notifications.inbox.daysAgo": [
     {
       "type": 1,
@@ -106000,6 +106350,32 @@
       "value": "未読の通知はありません"
     }
   ],
+  "web.notifications.inbox.episodeCount": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "新しいエピソード"
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": "件"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
   "web.notifications.inbox.episodeLine": [
     {
       "type": 1,
@@ -106012,6 +106388,46 @@
     {
       "type": 1,
       "value": "title"
+    }
+  ],
+  "web.notifications.inbox.episodeRange": [
+    {
+      "type": 1,
+      "value": "first"
+    },
+    {
+      "type": 0,
+      "value": " – "
+    },
+    {
+      "type": 1,
+      "value": "last"
+    }
+  ],
+  "web.notifications.inbox.episodeRangeLatest": [
+    {
+      "type": 1,
+      "value": "first"
+    },
+    {
+      "type": 0,
+      "value": " – "
+    },
+    {
+      "type": 1,
+      "value": "last"
+    },
+    {
+      "type": 0,
+      "value": " · 最新「"
+    },
+    {
+      "type": 1,
+      "value": "title"
+    },
+    {
+      "type": 0,
+      "value": "」"
     }
   ],
   "web.notifications.inbox.filterAll": [
@@ -106156,6 +106572,32 @@
       "value": "分前"
     }
   ],
+  "web.notifications.inbox.newCount": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "新着"
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": "件"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
   "web.notifications.inbox.newEpisode": [
     {
       "type": 0,
@@ -106196,6 +106638,12 @@
       "value": "reason"
     }
   ],
+  "web.notifications.inbox.requestTag": [
+    {
+      "type": 0,
+      "value": "リクエスト"
+    }
+  ],
   "web.notifications.inbox.requestedMovieAvailable": [
     {
       "type": 0,
@@ -106224,6 +106672,44 @@
     {
       "type": 0,
       "value": "未読"
+    }
+  ],
+  "web.notifications.inbox.unreadBadge": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "未読"
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": "件"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.notifications.inbox.viewInbox": [
+    {
+      "type": 0,
+      "value": "受信トレイ"
+    }
+  ],
+  "web.notifications.inbox.views": [
+    {
+      "type": 0,
+      "value": "通知の表示"
     }
   ],
   "web.notifications.preferences.continueWatching": [
@@ -106402,6 +106888,12 @@
       "value": "シリーズをミュートできませんでした"
     }
   ],
+  "web.notifications.queries.muteManyFailed": [
+    {
+      "type": 0,
+      "value": "選択したシリーズをミュートできませんでした"
+    }
+  ],
   "web.notifications.queries.muted": [
     {
       "type": 1,
@@ -106410,6 +106902,32 @@
     {
       "type": 0,
       "value": "をミュートしました"
+    }
+  ],
+  "web.notifications.queries.mutedMany": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "シリーズ"
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": "件をミュートしました"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
   "web.notifications.queries.removeAddressFailed": [
@@ -106446,6 +106964,38 @@
     {
       "type": 0,
       "value": "シリーズのミュートを解除できませんでした"
+    }
+  ],
+  "web.notifications.queries.unmuteManyFailed": [
+    {
+      "type": 0,
+      "value": "選択したシリーズのミュートを解除できませんでした"
+    }
+  ],
+  "web.notifications.queries.unmutedMany": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "シリーズ"
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": "件のミュートを解除しました"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
   "web.notifications.queries.verificationFailed": [
@@ -106490,6 +107040,96 @@
       "value": "ウォッチリスト"
     }
   ],
+  "web.notifications.selection.clear": [
+    {
+      "type": 0,
+      "value": "選択をクリア"
+    }
+  ],
+  "web.notifications.selection.count": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "other": {
+          "value": [
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": "件を選択中"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.notifications.selection.inboxLabel": [
+    {
+      "type": 0,
+      "value": "選択した通知"
+    }
+  ],
+  "web.notifications.selection.markRead": [
+    {
+      "type": 0,
+      "value": "既読にする"
+    }
+  ],
+  "web.notifications.selection.muteSeries": [
+    {
+      "type": 0,
+      "value": "シリーズをミュート"
+    }
+  ],
+  "web.notifications.selection.notificationCount": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "· 通知"
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": "件"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.notifications.selection.select": [
+    {
+      "type": 0,
+      "value": "選択"
+    }
+  ],
+  "web.notifications.selection.selectAllMatching": [
+    {
+      "type": 0,
+      "value": "一致するものをすべて選択"
+    }
+  ],
+  "web.notifications.selection.seriesLabel": [
+    {
+      "type": 0,
+      "value": "選択したシリーズ"
+    }
+  ],
   "web.notifications.series.allReasons": [
     {
       "type": 0,
@@ -106510,6 +107150,30 @@
     {
       "type": 0,
       "value": "すべての新しいエピソード"
+    }
+  ],
+  "web.notifications.series.columnNotifiesFor": [
+    {
+      "type": 0,
+      "value": "通知対象"
+    }
+  ],
+  "web.notifications.series.columnNotify": [
+    {
+      "type": 0,
+      "value": "通知"
+    }
+  ],
+  "web.notifications.series.columnReasons": [
+    {
+      "type": 0,
+      "value": "理由"
+    }
+  ],
+  "web.notifications.series.columnSeries": [
+    {
+      "type": 0,
+      "value": "シリーズ"
     }
   ],
   "web.notifications.series.empty": [
@@ -106646,6 +107310,16 @@
       "value": "通知はオフです"
     }
   ],
+  "web.notifications.series.notifySwitch": [
+    {
+      "type": 1,
+      "value": "title"
+    },
+    {
+      "type": 0,
+      "value": "の新しいエピソードを通知"
+    }
+  ],
   "web.notifications.series.reasonOff": [
     {
       "type": 0,
@@ -106666,6 +107340,22 @@
     {
       "type": 0,
       "value": "シリーズを検索"
+    }
+  ],
+  "web.notifications.series.selectSeries": [
+    {
+      "type": 1,
+      "value": "title"
+    },
+    {
+      "type": 0,
+      "value": "を選択"
+    }
+  ],
+  "web.notifications.series.selectShown": [
+    {
+      "type": 0,
+      "value": "表示中のシリーズをすべて選択"
     }
   ],
   "web.notifications.series.sort": [

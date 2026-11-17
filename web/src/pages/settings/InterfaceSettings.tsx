@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { useUICustomization } from "@/hooks/useUICustomization";
 import { useUserLibraries } from "@/hooks/queries/libraries";
+import { menuItemPinRef, usePinLabel, type PinRef } from "@/hooks/queries/pinLabels";
 import { useClearSettingValue, useSetSettingValue } from "@/hooks/queries/settingValues";
 import { useT, type MessageKey, type Translate } from "@/i18n";
 import { SETTING_KEYS } from "@/lib/settingsContract";
@@ -27,16 +28,12 @@ import {
   type PrimaryMenuItem,
 } from "@/lib/uiCustomization";
 
-import { CardOverlaySettings } from "./CardOverlaySettings";
 import { ChoiceButtons } from "@/components/settings/ChoiceButtons";
 import { PosterCardPreview } from "./PosterCardPreview";
 import { ResetButton } from "./ResetButton";
 
 const CLIENT_SCOPE = { scope: "profile_client" } as const;
 const DEVICE_SCOPE = { scope: "profile_device" } as const;
-
-/** How long the preview keeps the hover-only shortcut buttons showing after a pick. */
-const SHORTCUT_REVEAL_MS = 2500;
 
 const BUILTIN_LABELS: Record<string, MessageKey> = {
   home: "web.settings.interface.builtin.home",
@@ -62,14 +59,20 @@ const POSTER_SIZES: readonly { value: PosterSize; labelKey: MessageKey }[] = [
   { value: "large", labelKey: "web.settings.interface.posterLarge" },
 ];
 
-function menuItemLabel(t: Translate, item: PrimaryMenuItem): string {
+function menuItemLabel(
+  t: Translate,
+  item: PrimaryMenuItem,
+  pinLabel: (pin: PinRef) => string,
+): string {
   if (item.type === "builtin") {
     const key = BUILTIN_LABELS[item.destination];
     return key ? t(key) : item.destination;
   }
   if (item.type === "library") return t("web.settings.interface.menuLibrary", { name: item.label });
-  if (item.type === "section") return t("web.settings.interface.menuSection", { name: item.label });
-  return t("web.settings.interface.menuCollection", { name: item.label });
+  // Named like the sidebar names the link: by the row's or collection's current title.
+  const name = pinLabel(menuItemPinRef(item));
+  if (item.type === "section") return t("web.settings.interface.menuSection", { name });
+  return t("web.settings.interface.menuCollection", { name });
 }
 
 function errorMessage(error: unknown, fallback: string) {
@@ -78,14 +81,6 @@ function errorMessage(error: unknown, fallback: string) {
 
 export default function InterfaceSettings() {
   const t = useT();
-  const [revealShortcuts, setRevealShortcuts] = useState(false);
-  const revealTimer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(revealTimer.current), []);
-  const flashShortcuts = useCallback(() => {
-    setRevealShortcuts(true);
-    window.clearTimeout(revealTimer.current);
-    revealTimer.current = window.setTimeout(() => setRevealShortcuts(false), SHORTCUT_REVEAL_MS);
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -100,12 +95,13 @@ export default function InterfaceSettings() {
       <div className="grid gap-x-10 @5xl:grid-cols-[minmax(0,1fr)_auto]">
         <aside className="pb-2 @5xl:order-last @5xl:pb-0">
           <div className="@5xl:sticky @5xl:top-6 @5xl:max-h-[calc(100dvh-1.5rem)] @5xl:overflow-y-auto @5xl:pt-6">
-            <PosterCardPreview revealShortcuts={revealShortcuts} />
+            <PosterCardPreview revealShortcuts={false} />
           </div>
         </aside>
         <div className="min-w-0">
           <PosterSettings />
-          <CardOverlaySettings onShortcutsPicked={flashShortcuts} />
+          {/* Poster badges and card shortcuts are set by the administrator
+              (Admin > Appearance) in this fork; profiles cannot override them. */}
           <MenuSettings />
         </div>
       </div>
@@ -291,6 +287,11 @@ function MenuSettings() {
     }
     return [...unique.values()];
   }, [customization.shortcuts.items, libraries, menuItems]);
+  const pinRefs = useMemo(
+    () => [...menuItems, ...availableItems].flatMap((item) => menuItemPinRef(item) ?? []),
+    [availableItems, menuItems],
+  );
+  const pinLabel = usePinLabel(pinRefs);
 
   async function saveMenu(next: PrimaryMenuItem[]) {
     setSaved({ items: next, overBaselineKey: baselineKey });
@@ -344,7 +345,7 @@ function MenuSettings() {
         ) : null}
         <ol className="space-y-2" aria-label={t("web.settings.interface.menuLinks")}>
           {menuItems.map((item, index) => {
-            const label = menuItemLabel(t, item);
+            const label = menuItemLabel(t, item, pinLabel);
             const home = item.type === "builtin" && item.destination === "home";
             return (
               <li
@@ -412,7 +413,7 @@ function MenuSettings() {
             <SelectContent>
               {availableItems.map((item) => (
                 <SelectItem key={menuItemKey(item)} value={menuItemKey(item)}>
-                  {menuItemLabel(t, item)}
+                  {menuItemLabel(t, item, pinLabel)}
                 </SelectItem>
               ))}
             </SelectContent>

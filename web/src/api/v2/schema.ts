@@ -3582,6 +3582,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v2/admin/nodes/{id}/key": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Issue a new key for a transcode node and return it once. Each call rotates: the previous key stops working on this server at once and on other servers and proxies within seconds. The node's running streams fail until it restarts with the new key; drain the node first to avoid that. A disabled node can take a key. Never replay an uncertain issue; issue again instead. */
+    post: operations["issueAdminNodeKey"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v2/admin/nodes/{id}/reprobe": {
     parameters: {
       query?: never;
@@ -10375,6 +10392,46 @@ export interface paths {
      * @description The series notifies the acting profile again for its active reasons. The mute applies when notification delivery evaluates a new episode, normally within a minute of it arriving: an episode evaluated while the series was muted is not announced later, and one still waiting to be evaluated when the profile unmutes is announced. Unmuting a series that is not muted succeeds and changes nothing. No access check runs, so a profile can lift a mute on a series it can no longer see.
      */
     delete: operations["unmuteNotificationSeries"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v2/notifications/series/mute": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Mute new-episode notifications for many series.
+     * @description Mutes each named series for the acting profile as PUT /series/{series_id}/mute mutes one, in one request, and answers an outcome per distinct series in request order: applied when this call muted it, unchanged when it was already muted, not_found for an ID that names no series or a series the viewer may not see.
+     */
+    post: operations["muteManyNotificationSeries"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v2/notifications/series/unmute": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Unmute new-episode notifications for many series.
+     * @description Unmutes each named series for the acting profile as DELETE /series/{series_id}/mute unmutes one, in one request, and answers an outcome per distinct series in request order: applied when this call unmuted it, unchanged when it was not muted. No access check runs, so a profile can lift a mute on a series it can no longer see.
+     */
+    post: operations["unmuteManyNotificationSeries"];
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -19232,6 +19289,8 @@ export interface components {
        * @example 1
        */
       id: string;
+      /** @description A key has been issued to this transcode node. The key itself is shown only when it is issued. Always false for a proxy. */
+      key_issued: boolean;
       /**
        * Format: date-time
        * @description RFC 3339 instant in UTC with millisecond precision, or null
@@ -19251,6 +19310,11 @@ export interface components {
       physical_gpu_keys?: string[];
       /** @description Client-facing node address as configured; not validated as a URI */
       public_url?: string;
+      /**
+       * @description How this transcode node reads source media: local through its own library mount, core over HTTP from the API servers. Absent on proxies.
+       * @enum {string}
+       */
+      source_access?: "local" | "core";
       /** @enum {string} */
       type: "proxy" | "transcode";
       /** @description Node address as configured; not validated as a URI */
@@ -19261,8 +19325,12 @@ export interface components {
       allowed: boolean;
       /** @description Transcode nodes can drain: the drain and resume operations, and drain_requested and drain_state on node rows. */
       drain: boolean;
+      /** @description Transcode nodes can be issued their own key: POST /admin/nodes/{id}/key, and key_issued on node rows. */
+      node_keys: boolean;
       /** @description Opaque revision of this document */
       revision: string;
+      /** @description Transcode nodes can read source media through the API servers instead of a library mount: source_access on node rows and in the create and update bodies. */
+      source_access: boolean;
       /**
        * @description Support and configuration state, not health
        * @enum {string}
@@ -19280,6 +19348,11 @@ export interface components {
       name: string;
       /** Format: uri-reference */
       public_url?: string;
+      /**
+       * @description How a transcode node reads source media: local through its own library mount at the API servers' paths, or core over HTTP from the API servers, so the node needs no library mount. Absent means local. A proxy accepts only local. Requires the source_access node capability.
+       * @enum {string}
+       */
+      source_access?: "local" | "core";
       /** @enum {string} */
       type: "proxy" | "transcode";
       /** Format: uri-reference */
@@ -19313,6 +19386,10 @@ export interface components {
       /** @description The URL-fenced persistence call returned successfully; it may have ignored a concurrently repointed node. Not a revision receipt. */
       health_persisted: boolean;
       healthy: boolean;
+    };
+    AdminNodeKey: {
+      /** @description The transcode node's new key, for its SILO_NODE_KEY setting. Shown only in this response; it is never returned again. */
+      node_key: string;
     };
     AdminNodeNetworkAccess: {
       /** @description Overlay DNS name of the node. */
@@ -19478,6 +19555,11 @@ export interface components {
       name?: string;
       /** Format: uri-reference */
       public_url?: string | null;
+      /**
+       * @description How this transcode node reads source media: local or core (see the create body). Applies to jobs the node starts after the change; running jobs keep their mode. A proxy accepts only local. Requires the source_access node capability.
+       * @enum {string}
+       */
+      source_access?: "local" | "core";
       /** Format: uri-reference */
       url?: string;
     };
@@ -23576,8 +23658,27 @@ export interface components {
     };
     AudiobookRelatedItem: {
       content_id: string;
+      /**
+       * Format: int64
+       * @description Audiobooks only: total listening time, summed over the book's files the viewer can play, as the book's own total_duration_seconds is. Absent for ebooks and when no file reports a duration
+       * @example 41520
+       */
+      duration_seconds?: number;
+      /**
+       * @description The profile finished this book, by the rule a catalog card's user_state.played follows: an audiobook's visible progress or a visible completed history row, an ebook's reading progress. Absent when false and without a profile
+       * @example true
+       */
+      played?: boolean;
+      /** @description The poster's ThumbHash, for a blurred preview while poster_url loads */
+      poster_thumbhash?: string;
       /** Format: uri-reference */
       poster_url?: string;
+      /**
+       * Format: double
+       * @description How far the profile is into the book, 0-1: listening position over the progress row's duration for an audiobook, reading progress for an ebook. Present only while the book is started and not played
+       * @example 0.42
+       */
+      progress_ratio?: number;
       /** Format: int64 */
       series_index?: number;
       title: string;
@@ -24187,6 +24288,13 @@ export interface components {
        * @enum {string}
        */
       advisory_source?: "commonsense" | "mdblist";
+      /**
+       * @description On an audiobook or ebook card in a catalog browse listing: up to three author names in credit order, the names the book's detail page lists under authors. Absent for other types, on other listings, and when the book credits no author
+       * @example [
+       *       "Frank Herbert"
+       *     ]
+       */
+      authors?: string[];
       /** @description On a series, complete seasons out of seasons that have aired. On a season, episodes in the library out of the episodes the season lists. Sent only while the acting profile's poster badges are on and include the availability badge. Absent for other types, for specials, and when episode metadata is incomplete. */
       availability?: components["schemas"]["CatalogAvailability"];
       /** @description Whether backdrop_url is an episode still. False for series artwork; absent when provenance is unavailable. */
@@ -24206,7 +24314,10 @@ export interface components {
       content_id: string;
       /** @example R */
       content_rating?: string;
-      /** Format: double */
+      /**
+       * Format: double
+       * @description The length position_seconds is measured against, in seconds, as the progress record holds it. Present with position_seconds; a card draws its progress bar and time left from the pair
+       */
       duration_seconds?: number;
       /** Format: int64 */
       episode_number?: number;
@@ -24252,7 +24363,7 @@ export interface components {
       play_content_id?: string;
       /**
        * Format: double
-       * @description Resume position on a continue-watching card
+       * @description The profile's resume position, in seconds. On a Continue Watching card, and on a catalog browse or box set card for a title the profile has started and not finished (absent while user_state.played is true); other listings leave it absent. Series, seasons, and ebooks never carry it on a browse card
        */
       position_seconds?: number;
       /** @description Whether poster_url is an episode still. False for series or season artwork; absent when provenance is unavailable. */
@@ -24397,6 +24508,13 @@ export interface components {
       air_time?: string;
       air_timezone?: string;
       audiobook?: components["schemas"]["AudiobookDetailExtension"];
+      /**
+       * @description On an audiobook or ebook card in a catalog browse listing: up to three author names in credit order, the names the book's detail page lists under authors. Absent for other types, on other listings, and when the book credits no author
+       * @example [
+       *       "Frank Herbert"
+       *     ]
+       */
+      authors?: string[];
       /** @description On a series, complete seasons out of seasons that have aired. On a season, episodes in the library out of the episodes the season lists. Sent only while the acting profile's poster badges are on and include the availability badge. Absent for other types, for specials, and when episode metadata is incomplete. */
       availability?: components["schemas"]["CatalogAvailability"];
       /** @description Whether backdrop_url is an episode still. False for series artwork; absent when provenance is unavailable. */
@@ -24441,7 +24559,10 @@ export interface components {
        * @description Presigned, short-lived. Transparent disc art. Movies only
        */
       disc_url?: string;
-      /** Format: double */
+      /**
+       * Format: double
+       * @description The length position_seconds is measured against, in seconds, as the progress record holds it. Present with position_seconds; a card draws its progress bar and time left from the pair
+       */
       duration_seconds?: number;
       ebook?: components["schemas"]["EbookDetailExtension"];
       /** @description Whether forced subtitles show for this item under the viewer's preferences */
@@ -24521,7 +24642,7 @@ export interface components {
       playback_variants?: components["schemas"]["PlaybackVariant"][];
       /**
        * Format: double
-       * @description Resume position on a continue-watching card
+       * @description The profile's resume position, in seconds. On a Continue Watching card, and on a catalog browse or box set card for a title the profile has started and not finished (absent while user_state.played is true); other listings leave it absent. Series, seasons, and ebooks never carry it on a browse card
        */
       position_seconds?: number;
       /** @description Whether poster_url is an episode still. False for series or season artwork; absent when provenance is unavailable. */
@@ -27672,6 +27793,13 @@ export interface components {
        * @enum {string}
        */
       advisory_source?: "commonsense" | "mdblist";
+      /**
+       * @description On an audiobook or ebook card in a catalog browse listing: up to three author names in credit order, the names the book's detail page lists under authors. Absent for other types, on other listings, and when the book credits no author
+       * @example [
+       *       "Frank Herbert"
+       *     ]
+       */
+      authors?: string[];
       /** @description On a series, complete seasons out of seasons that have aired. On a season, episodes in the library out of the episodes the season lists. Sent only while the acting profile's poster badges are on and include the availability badge. Absent for other types, for specials, and when episode metadata is incomplete. */
       availability?: components["schemas"]["CatalogAvailability"];
       /** @description Whether backdrop_url is an episode still. False for series artwork; absent when provenance is unavailable. */
@@ -27691,7 +27819,10 @@ export interface components {
       content_id: string;
       /** @example R */
       content_rating?: string;
-      /** Format: double */
+      /**
+       * Format: double
+       * @description The length position_seconds is measured against, in seconds, as the progress record holds it. Present with position_seconds; a card draws its progress bar and time left from the pair
+       */
       duration_seconds?: number;
       /** Format: int64 */
       episode_number?: number;
@@ -27737,7 +27868,7 @@ export interface components {
       play_content_id?: string;
       /**
        * Format: double
-       * @description Resume position on a continue-watching card
+       * @description The profile's resume position, in seconds. On a Continue Watching card, and on a catalog browse or box set card for a title the profile has started and not finished (absent while user_state.played is true); other listings leave it absent. Series, seasons, and ebooks never carry it on a browse card
        */
       position_seconds?: number;
       /** @description Whether poster_url is an episode still. False for series or season artwork; absent when provenance is unavailable. */
@@ -30328,6 +30459,8 @@ export interface components {
     NotificationSeriesCapability: {
       /** @description GET /notifications/series lists the series whose new episodes can notify the profile */
       available: boolean;
+      /** @description POST /notifications/series/mute and /notifications/series/unmute mute and unmute many series at once, and GET /notifications/series accepts status=muted */
+      bulk_mute: boolean;
       /** @description PUT and DELETE /notifications/series/{series_id}/mute mute and unmute one series, and list entries carry muted */
       mute: boolean;
     };
@@ -30336,6 +30469,31 @@ export interface components {
       items: components["schemas"]["NotificationSeries"][];
       /** @description Cursor state; absent for bounded unpaginated collections */
       page?: components["schemas"]["PageInfo"];
+    };
+    NotificationSeriesMuteRequest: {
+      /**
+       * @description Catalog item identifiers of the series. A repeated identifier is reported once.
+       * @example [
+       *       "series-tvdb-81189"
+       *     ]
+       */
+      series_ids: string[];
+    };
+    NotificationSeriesMuteResult: {
+      /**
+       * @description applied: this call muted or unmuted the series. unchanged: it was already in the requested state. not_found: a mute named no series, or one the viewer may not see; an unmute never answers it.
+       * @enum {string}
+       */
+      outcome: "applied" | "unchanged" | "not_found";
+      /**
+       * @description Opaque identifier
+       * @example 1
+       */
+      series_id: string;
+    };
+    NotificationSeriesMuteResults: {
+      /** @description One result per distinct requested series, in request order */
+      results: components["schemas"]["NotificationSeriesMuteResult"][];
     };
     NotificationSeriesReasons: {
       /** @description The profile is partway through the series */
@@ -37236,6 +37394,13 @@ export interface components {
        * @enum {string}
        */
       advisory_source?: "commonsense" | "mdblist";
+      /**
+       * @description On an audiobook or ebook card in a catalog browse listing: up to three author names in credit order, the names the book's detail page lists under authors. Absent for other types, on other listings, and when the book credits no author
+       * @example [
+       *       "Frank Herbert"
+       *     ]
+       */
+      authors?: string[];
       /** @description On a series, complete seasons out of seasons that have aired. On a season, episodes in the library out of the episodes the season lists. Sent only while the acting profile's poster badges are on and include the availability badge. Absent for other types, for specials, and when episode metadata is incomplete. */
       availability?: components["schemas"]["CatalogAvailability"];
       /** @description Whether backdrop_url is an episode still. False for series artwork; absent when provenance is unavailable. */
@@ -37257,7 +37422,10 @@ export interface components {
       content_id: string;
       /** @example R */
       content_rating?: string;
-      /** Format: double */
+      /**
+       * Format: double
+       * @description The length position_seconds is measured against, in seconds, as the progress record holds it. Present with position_seconds; a card draws its progress bar and time left from the pair
+       */
       duration_seconds?: number;
       /** Format: int64 */
       episode_number?: number;
@@ -37303,7 +37471,7 @@ export interface components {
       play_content_id?: string;
       /**
        * Format: double
-       * @description Resume position on a continue-watching card
+       * @description The profile's resume position, in seconds. On a Continue Watching card, and on a catalog browse or box set card for a title the profile has started and not finished (absent while user_state.played is true); other listings leave it absent. Series, seasons, and ebooks never carry it on a browse card
        */
       position_seconds?: number;
       /** @description Whether poster_url is an episode still. False for series or season artwork; absent when provenance is unavailable. */
@@ -37466,6 +37634,13 @@ export interface components {
        * @enum {string}
        */
       advisory_source?: "commonsense" | "mdblist";
+      /**
+       * @description On an audiobook or ebook card in a catalog browse listing: up to three author names in credit order, the names the book's detail page lists under authors. Absent for other types, on other listings, and when the book credits no author
+       * @example [
+       *       "Frank Herbert"
+       *     ]
+       */
+      authors?: string[];
       /** @description On a series, complete seasons out of seasons that have aired. On a season, episodes in the library out of the episodes the season lists. Sent only while the acting profile's poster badges are on and include the availability badge. Absent for other types, for specials, and when episode metadata is incomplete. */
       availability?: components["schemas"]["CatalogAvailability"];
       /** @description Whether backdrop_url is an episode still. False for series artwork; absent when provenance is unavailable. */
@@ -37485,7 +37660,10 @@ export interface components {
       content_id: string;
       /** @example R */
       content_rating?: string;
-      /** Format: double */
+      /**
+       * Format: double
+       * @description The length position_seconds is measured against, in seconds, as the progress record holds it. Present with position_seconds; a card draws its progress bar and time left from the pair
+       */
       duration_seconds?: number;
       /** Format: int64 */
       episode_number?: number;
@@ -37531,7 +37709,7 @@ export interface components {
       play_content_id?: string;
       /**
        * Format: double
-       * @description Resume position on a continue-watching card
+       * @description The profile's resume position, in seconds. On a Continue Watching card, and on a catalog browse or box set card for a title the profile has started and not finished (absent while user_state.played is true); other listings leave it absent. Series, seasons, and ebooks never carry it on a browse card
        */
       position_seconds?: number;
       /** @description Whether poster_url is an episode still. False for series or season artwork; absent when provenance is unavailable. */
@@ -69570,6 +69748,124 @@ export interface operations {
       };
       /** @description Not Acceptable */
       406: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+    };
+  };
+  issueAdminNodeKey: {
+    parameters: {
+      query?: never;
+      header?: {
+        /** @description Optional. When present, it must name the authenticated account's primary profile; an absent header is accepted. */
+        "X-Profile-Id"?: string;
+        /** @description Verification proof for a PIN-locked profile, issued by POST /api/v2/profiles/{id}/verify-pin; required only when the declared profile is locked */
+        "X-Profile-Token"?: string;
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Created */
+      201: {
+        headers: {
+          "Cache-Control"?: string;
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AdminNodeKey"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Not Acceptable */
+      406: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Conflict */
+      409: {
         headers: {
           [name: string]: unknown;
         };
@@ -129131,8 +129427,8 @@ export interface operations {
           | "-added_at"
           | "latest_episode_added"
           | "-latest_episode_added";
-        /** @description active keeps the series that notify; inactive keeps the ones that do not, because the profile's preferences silence every reason or the profile muted the series */
-        status?: "all" | "active" | "inactive";
+        /** @description active keeps the series that notify; inactive keeps the ones that do not, because the profile's preferences silence every reason or the profile muted the series; muted keeps only the series the profile muted */
+        status?: "all" | "active" | "inactive" | "muted";
         /** @description Width in device pixels the client draws an episode's or a local extra's still_url at. Overrides image_size for those stills */
         still_width?: number;
       };
@@ -129408,6 +129704,280 @@ export interface operations {
       };
       /** @description Not Acceptable */
       406: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+    };
+  };
+  muteManyNotificationSeries: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description The household profile acting for this request; it must belong to the authenticated account. */
+        "X-Profile-Id": string;
+        /** @description Verification proof for a PIN-locked profile, issued by POST /api/v2/profiles/{id}/verify-pin; required only when the declared profile is locked */
+        "X-Profile-Token"?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NotificationSeriesMuteRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationSeriesMuteResults"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Not Acceptable */
+      406: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Request Timeout */
+      408: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Unsupported Media Type */
+      415: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Unprocessable Entity */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Too Many Requests */
+      429: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Internal Server Error */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Service Unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+    };
+  };
+  unmuteManyNotificationSeries: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description The household profile acting for this request; it must belong to the authenticated account. */
+        "X-Profile-Id": string;
+        /** @description Verification proof for a PIN-locked profile, issued by POST /api/v2/profiles/{id}/verify-pin; required only when the declared profile is locked */
+        "X-Profile-Token"?: string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["NotificationSeriesMuteRequest"];
+      };
+    };
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationSeriesMuteResults"];
+        };
+      };
+      /** @description Bad Request */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Not Acceptable */
+      406: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Request Timeout */
+      408: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Request Entity Too Large */
+      413: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/problem+json": components["schemas"]["Problem"];
+        };
+      };
+      /** @description Unsupported Media Type */
+      415: {
         headers: {
           [name: string]: unknown;
         };

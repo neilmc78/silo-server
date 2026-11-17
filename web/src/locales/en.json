@@ -3443,6 +3443,16 @@
       "value": "Nothing here can be played."
     }
   ],
+  "signIn.withProvider": [
+    {
+      "type": 0,
+      "value": "Sign in with "
+    },
+    {
+      "type": 1,
+      "value": "provider"
+    }
+  ],
   "subtitleSearch.hearingImpaired": [
     {
       "type": 0,
@@ -6525,6 +6535,44 @@
       "value": "version"
     }
   ],
+  "web.admin.activity.bitrate.limit": [
+    {
+      "type": 0,
+      "value": "limit "
+    },
+    {
+      "type": 1,
+      "value": "rate"
+    }
+  ],
+  "web.admin.activity.bitrate.limitAndSource": [
+    {
+      "type": 0,
+      "value": "limit "
+    },
+    {
+      "type": 1,
+      "value": "limit"
+    },
+    {
+      "type": 0,
+      "value": " · source "
+    },
+    {
+      "type": 1,
+      "value": "source"
+    }
+  ],
+  "web.admin.activity.bitrate.source": [
+    {
+      "type": 0,
+      "value": "source "
+    },
+    {
+      "type": 1,
+      "value": "rate"
+    }
+  ],
   "web.admin.activity.client.agent": [
     {
       "type": 0,
@@ -6535,6 +6583,12 @@
     {
       "type": 0,
       "value": "App"
+    }
+  ],
+  "web.admin.activity.client.device": [
+    {
+      "type": 0,
+      "value": "Device"
     }
   ],
   "web.admin.activity.client.heading": [
@@ -6553,6 +6607,12 @@
     {
       "type": 0,
       "value": "Actions"
+    }
+  ],
+  "web.admin.activity.column.bitrate": [
+    {
+      "type": 0,
+      "value": "Bitrate"
     }
   ],
   "web.admin.activity.column.playback": [
@@ -7045,12 +7105,6 @@
       "value": "event"
     }
   ],
-  "web.admin.activity.panel.heading": [
-    {
-      "type": 0,
-      "value": "Playback"
-    }
-  ],
   "web.admin.activity.panel.loadingFfmpeg": [
     {
       "type": 0,
@@ -7519,6 +7573,76 @@
     {
       "type": 0,
       "value": "View Logs"
+    }
+  ],
+  "web.admin.activity.session.heading": [
+    {
+      "type": 0,
+      "value": "Session"
+    }
+  ],
+  "web.admin.activity.session.id": [
+    {
+      "type": 0,
+      "value": "Session ID"
+    }
+  ],
+  "web.admin.activity.session.lastReport": [
+    {
+      "type": 0,
+      "value": "Last report"
+    }
+  ],
+  "web.admin.activity.session.lastReportAgo": [
+    {
+      "type": 1,
+      "value": "elapsed"
+    },
+    {
+      "type": 0,
+      "value": " ago"
+    }
+  ],
+  "web.admin.activity.session.remoteControl": [
+    {
+      "type": 0,
+      "value": "Remote control"
+    }
+  ],
+  "web.admin.activity.session.remoteControlAvailable": [
+    {
+      "type": 0,
+      "value": "Available"
+    }
+  ],
+  "web.admin.activity.session.remoteControlUnavailable": [
+    {
+      "type": 0,
+      "value": "Not available"
+    }
+  ],
+  "web.admin.activity.session.started": [
+    {
+      "type": 0,
+      "value": "Started"
+    }
+  ],
+  "web.admin.activity.session.startedAgo": [
+    {
+      "type": 1,
+      "value": "time"
+    },
+    {
+      "type": 0,
+      "value": " · "
+    },
+    {
+      "type": 1,
+      "value": "elapsed"
+    },
+    {
+      "type": 0,
+      "value": " ago"
     }
   ],
   "web.admin.activity.sort.group": [
@@ -48402,6 +48526,30 @@
       "value": "Saving..."
     }
   ],
+  "web.admin.nodes.form.sourceAccess": [
+    {
+      "type": 0,
+      "value": "Source access"
+    }
+  ],
+  "web.admin.nodes.form.sourceAccessCore": [
+    {
+      "type": 0,
+      "value": "Through the API servers"
+    }
+  ],
+  "web.admin.nodes.form.sourceAccessHelp": [
+    {
+      "type": 0,
+      "value": "Through the API servers, the node needs no library mount, but every byte it reads passes through the API servers, so they need the bandwidth for it."
+    }
+  ],
+  "web.admin.nodes.form.sourceAccessLocal": [
+    {
+      "type": 0,
+      "value": "Library mount on the node"
+    }
+  ],
   "web.admin.nodes.form.type": [
     {
       "type": 0,
@@ -48972,6 +49120,200 @@
     {
       "type": 0,
       "value": "Software"
+    }
+  ],
+  "web.admin.nodes.key.close": [
+    {
+      "type": 0,
+      "value": "Close"
+    }
+  ],
+  "web.admin.nodes.key.copied": [
+    {
+      "type": 0,
+      "value": "Copied"
+    }
+  ],
+  "web.admin.nodes.key.copyFailed": [
+    {
+      "type": 0,
+      "value": "Could not copy. Select the text and copy it by hand."
+    }
+  ],
+  "web.admin.nodes.key.copyKey": [
+    {
+      "type": 0,
+      "value": "Copy key"
+    }
+  ],
+  "web.admin.nodes.key.copySettings": [
+    {
+      "type": 0,
+      "value": "Copy settings"
+    }
+  ],
+  "web.admin.nodes.key.coreUrlHelp": [
+    {
+      "type": 0,
+      "value": "The address the node calls to reach this server. With several API servers, use their load-balanced address."
+    }
+  ],
+  "web.admin.nodes.key.coreUrlLabel": [
+    {
+      "type": 0,
+      "value": "Server address for the node"
+    }
+  ],
+  "web.admin.nodes.key.coreUrlMissing": [
+    {
+      "type": 0,
+      "value": "Enter the server address to complete the settings."
+    }
+  ],
+  "web.admin.nodes.key.dialogTitle": [
+    {
+      "type": 0,
+      "value": "Key for "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    }
+  ],
+  "web.admin.nodes.key.issue": [
+    {
+      "type": 0,
+      "value": "Issue key"
+    }
+  ],
+  "web.admin.nodes.key.issueFor": [
+    {
+      "type": 0,
+      "value": "Issue a key for "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    }
+  ],
+  "web.admin.nodes.key.issued": [
+    {
+      "type": 0,
+      "value": "Key issued"
+    }
+  ],
+  "web.admin.nodes.key.issuing": [
+    {
+      "type": 0,
+      "value": "Issuing a key…"
+    }
+  ],
+  "web.admin.nodes.key.keyLabel": [
+    {
+      "type": 0,
+      "value": "Node key"
+    }
+  ],
+  "web.admin.nodes.key.later": [
+    {
+      "type": 0,
+      "value": "Not now"
+    }
+  ],
+  "web.admin.nodes.key.missing": [
+    {
+      "type": 0,
+      "value": "No key: this node takes no work until a key is issued"
+    }
+  ],
+  "web.admin.nodes.key.notShownAgain": [
+    {
+      "type": 0,
+      "value": "Copy the key now. It is not shown again; if you lose it, rotate the key and restart the node with the new one."
+    }
+  ],
+  "web.admin.nodes.key.offer": [
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": " takes no work until it has a key. Issue one now to get the settings the node starts with."
+    }
+  ],
+  "web.admin.nodes.key.rotate": [
+    {
+      "type": 0,
+      "value": "Rotate key"
+    }
+  ],
+  "web.admin.nodes.key.rotateDescription": [
+    {
+      "type": 0,
+      "value": "The current key stops working immediately. The node loses its connection to this server: its running streams fail, and it takes no work until you restart it with the new key."
+    }
+  ],
+  "web.admin.nodes.key.rotateDrainHint": [
+    {
+      "type": 0,
+      "value": "To avoid cutting streams, drain the node first and rotate the key once it shows Drained."
+    }
+  ],
+  "web.admin.nodes.key.rotateFor": [
+    {
+      "type": 0,
+      "value": "Rotate the key for "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    }
+  ],
+  "web.admin.nodes.key.rotateTitle": [
+    {
+      "type": 0,
+      "value": "Rotate the key for "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": "?"
+    }
+  ],
+  "web.admin.nodes.key.saved": [
+    {
+      "type": 0,
+      "value": "I saved the key"
+    }
+  ],
+  "web.admin.nodes.key.settingsHelp": [
+    {
+      "type": 0,
+      "value": "Start the node with these two settings. A node that is already running keeps its old key until you restart it."
+    }
+  ],
+  "web.admin.nodes.key.settingsLabel": [
+    {
+      "type": 0,
+      "value": "Node settings"
+    }
+  ],
+  "web.admin.nodes.key.unconfirmed": [
+    {
+      "type": 0,
+      "value": "Could not confirm a new key for "
+    },
+    {
+      "type": 1,
+      "value": "name"
+    },
+    {
+      "type": 0,
+      "value": ". Refresh the page before trying again: if a key was issued, the previous one has already stopped working."
     }
   ],
   "web.admin.nodes.memory.noReading": [
@@ -84301,20 +84643,6 @@
       "value": "number"
     }
   ],
-  "web.audiobooks.chapters.count": [
-    {
-      "type": 0,
-      "value": "("
-    },
-    {
-      "type": 1,
-      "value": "count"
-    },
-    {
-      "type": 0,
-      "value": ")"
-    }
-  ],
   "web.audiobooks.chapters.duration": [
     {
       "type": 1,
@@ -84339,34 +84667,68 @@
       "value": "Chapters"
     }
   ],
-  "web.audiobooks.chapters.listening": [
+  "web.audiobooks.chapters.leftInChapter": [
+    {
+      "type": 1,
+      "value": "time"
+    },
     {
       "type": 0,
-      "value": "listening"
+      "value": " left in this chapter"
     }
   ],
-  "web.audiobooks.chapters.sort": [
+  "web.audiobooks.chapters.showAll": [
     {
       "type": 0,
-      "value": "Sort"
+      "value": "Show all "
+    },
+    {
+      "type": 1,
+      "value": "count"
     }
   ],
-  "web.audiobooks.chapters.sortAria": [
+  "web.audiobooks.chapters.showFewer": [
     {
       "type": 0,
-      "value": "Sort chapters"
+      "value": "Show fewer"
     }
   ],
-  "web.audiobooks.chapters.sortLongest": [
+  "web.audiobooks.detail.finished": [
     {
       "type": 0,
-      "value": "Longest first"
+      "value": "Finished"
     }
   ],
-  "web.audiobooks.chapters.sortPosition": [
+  "web.audiobooks.detail.length": [
     {
       "type": 0,
-      "value": "By position"
+      "value": "Length"
+    }
+  ],
+  "web.audiobooks.detail.publisher": [
+    {
+      "type": 0,
+      "value": "Publisher"
+    }
+  ],
+  "web.audiobooks.detail.released": [
+    {
+      "type": 0,
+      "value": "Released"
+    }
+  ],
+  "web.audiobooks.detail.seriesBook": [
+    {
+      "type": 1,
+      "value": "series"
+    },
+    {
+      "type": 0,
+      "value": ", book "
+    },
+    {
+      "type": 1,
+      "value": "number"
     }
   ],
   "web.audiobooks.duration.hours": [
@@ -85091,6 +85453,12 @@
       "pluralType": "cardinal"
     }
   ],
+  "web.audiobooks.hero.alsoListening": [
+    {
+      "type": 0,
+      "value": "Also listening"
+    }
+  ],
   "web.audiobooks.hero.ariaLabel": [
     {
       "type": 0,
@@ -85129,38 +85497,6 @@
       "value": "total"
     }
   ],
-  "web.audiobooks.hero.chapterPositionTitled": [
-    {
-      "type": 0,
-      "value": "Chapter "
-    },
-    {
-      "type": 1,
-      "value": "index"
-    },
-    {
-      "type": 0,
-      "value": " of "
-    },
-    {
-      "type": 1,
-      "value": "total"
-    },
-    {
-      "type": 0,
-      "value": " · "
-    },
-    {
-      "type": 1,
-      "value": "chapter"
-    }
-  ],
-  "web.audiobooks.hero.eyebrow": [
-    {
-      "type": 0,
-      "value": "Now Listening"
-    }
-  ],
   "web.audiobooks.hero.listen": [
     {
       "type": 0,
@@ -85193,12 +85529,6 @@
     {
       "type": 0,
       "value": "Resume"
-    }
-  ],
-  "web.audiobooks.narrator.heading": [
-    {
-      "type": 0,
-      "value": "Narrator"
     }
   ],
   "web.audiobooks.narrator.narrationCount": [
@@ -85245,20 +85575,16 @@
       "value": "Back to player"
     }
   ],
-  "web.audiobooks.player.chapterNumber": [
-    {
-      "type": 0,
-      "value": "Chapter "
-    },
-    {
-      "type": 1,
-      "value": "number"
-    }
-  ],
   "web.audiobooks.player.close": [
     {
       "type": 0,
       "value": "Close player"
+    }
+  ],
+  "web.audiobooks.player.comingUp": [
+    {
+      "type": 0,
+      "value": "Coming up"
     }
   ],
   "web.audiobooks.player.faster": [
@@ -116683,6 +117009,30 @@
       "value": "Failed to save markers"
     }
   ],
+  "web.notifications.inbox.dayOlder": [
+    {
+      "type": 0,
+      "value": "Older"
+    }
+  ],
+  "web.notifications.inbox.dayToday": [
+    {
+      "type": 0,
+      "value": "Today"
+    }
+  ],
+  "web.notifications.inbox.dayWeek": [
+    {
+      "type": 0,
+      "value": "Last 7 days"
+    }
+  ],
+  "web.notifications.inbox.dayYesterday": [
+    {
+      "type": 0,
+      "value": "Yesterday"
+    }
+  ],
   "web.notifications.inbox.daysAgo": [
     {
       "type": 1,
@@ -116711,6 +117061,40 @@
       "value": "No unread notifications"
     }
   ],
+  "web.notifications.inbox.episodeCount": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " new episode"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " new episodes"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
   "web.notifications.inbox.episodeLine": [
     {
       "type": 1,
@@ -116723,6 +117107,46 @@
     {
       "type": 1,
       "value": "title"
+    }
+  ],
+  "web.notifications.inbox.episodeRange": [
+    {
+      "type": 1,
+      "value": "first"
+    },
+    {
+      "type": 0,
+      "value": " – "
+    },
+    {
+      "type": 1,
+      "value": "last"
+    }
+  ],
+  "web.notifications.inbox.episodeRangeLatest": [
+    {
+      "type": 1,
+      "value": "first"
+    },
+    {
+      "type": 0,
+      "value": " – "
+    },
+    {
+      "type": 1,
+      "value": "last"
+    },
+    {
+      "type": 0,
+      "value": " · latest “"
+    },
+    {
+      "type": 1,
+      "value": "title"
+    },
+    {
+      "type": 0,
+      "value": "”"
     }
   ],
   "web.notifications.inbox.filterAll": [
@@ -116867,6 +117291,40 @@
       "value": "m ago"
     }
   ],
+  "web.notifications.inbox.newCount": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " new"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " new"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
   "web.notifications.inbox.newEpisode": [
     {
       "type": 0,
@@ -116907,6 +117365,12 @@
       "value": "reason"
     }
   ],
+  "web.notifications.inbox.requestTag": [
+    {
+      "type": 0,
+      "value": "Request"
+    }
+  ],
   "web.notifications.inbox.requestedMovieAvailable": [
     {
       "type": 0,
@@ -116935,6 +117399,52 @@
     {
       "type": 0,
       "value": "Unread"
+    }
+  ],
+  "web.notifications.inbox.unreadBadge": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " unread"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " unread"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.notifications.inbox.viewInbox": [
+    {
+      "type": 0,
+      "value": "Inbox"
+    }
+  ],
+  "web.notifications.inbox.views": [
+    {
+      "type": 0,
+      "value": "Notification views"
     }
   ],
   "web.notifications.preferences.continueWatching": [
@@ -117113,6 +117623,12 @@
       "value": "Failed to mute the series"
     }
   ],
+  "web.notifications.queries.muteManyFailed": [
+    {
+      "type": 0,
+      "value": "Couldn’t mute the selected series"
+    }
+  ],
   "web.notifications.queries.muted": [
     {
       "type": 0,
@@ -117121,6 +117637,48 @@
     {
       "type": 1,
       "value": "title"
+    }
+  ],
+  "web.notifications.queries.mutedMany": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Muted "
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " series"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Muted "
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " series"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
   "web.notifications.queries.removeAddressFailed": [
@@ -117157,6 +117715,54 @@
     {
       "type": 0,
       "value": "Failed to unmute the series"
+    }
+  ],
+  "web.notifications.queries.unmuteManyFailed": [
+    {
+      "type": 0,
+      "value": "Couldn’t unmute the selected series"
+    }
+  ],
+  "web.notifications.queries.unmutedMany": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Unmuted "
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " series"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "Unmuted "
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " series"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
     }
   ],
   "web.notifications.queries.verificationFailed": [
@@ -117201,6 +117807,124 @@
       "value": "Watchlist"
     }
   ],
+  "web.notifications.selection.clear": [
+    {
+      "type": 0,
+      "value": "Clear selection"
+    }
+  ],
+  "web.notifications.selection.count": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " selected"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " selected"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.notifications.selection.inboxLabel": [
+    {
+      "type": 0,
+      "value": "Selected notifications"
+    }
+  ],
+  "web.notifications.selection.markRead": [
+    {
+      "type": 0,
+      "value": "Mark read"
+    }
+  ],
+  "web.notifications.selection.muteSeries": [
+    {
+      "type": 0,
+      "value": "Mute series"
+    }
+  ],
+  "web.notifications.selection.notificationCount": [
+    {
+      "type": 6,
+      "value": "count",
+      "options": {
+        "one": {
+          "value": [
+            {
+              "type": 0,
+              "value": "· "
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " notification"
+            }
+          ]
+        },
+        "other": {
+          "value": [
+            {
+              "type": 0,
+              "value": "· "
+            },
+            {
+              "type": 1,
+              "value": "count_text"
+            },
+            {
+              "type": 0,
+              "value": " notifications"
+            }
+          ]
+        }
+      },
+      "offset": 0,
+      "pluralType": "cardinal"
+    }
+  ],
+  "web.notifications.selection.select": [
+    {
+      "type": 0,
+      "value": "Select"
+    }
+  ],
+  "web.notifications.selection.selectAllMatching": [
+    {
+      "type": 0,
+      "value": "Select all matching"
+    }
+  ],
+  "web.notifications.selection.seriesLabel": [
+    {
+      "type": 0,
+      "value": "Selected series"
+    }
+  ],
   "web.notifications.series.allReasons": [
     {
       "type": 0,
@@ -117221,6 +117945,30 @@
     {
       "type": 0,
       "value": "Any new episode"
+    }
+  ],
+  "web.notifications.series.columnNotifiesFor": [
+    {
+      "type": 0,
+      "value": "Notifies for"
+    }
+  ],
+  "web.notifications.series.columnNotify": [
+    {
+      "type": 0,
+      "value": "Notify"
+    }
+  ],
+  "web.notifications.series.columnReasons": [
+    {
+      "type": 0,
+      "value": "Why"
+    }
+  ],
+  "web.notifications.series.columnSeries": [
+    {
+      "type": 0,
+      "value": "Series"
     }
   ],
   "web.notifications.series.empty": [
@@ -117357,6 +118105,16 @@
       "value": "Notifications are off"
     }
   ],
+  "web.notifications.series.notifySwitch": [
+    {
+      "type": 0,
+      "value": "Notify me about new episodes of "
+    },
+    {
+      "type": 1,
+      "value": "title"
+    }
+  ],
   "web.notifications.series.reasonOff": [
     {
       "type": 0,
@@ -117377,6 +118135,22 @@
     {
       "type": 0,
       "value": "Search series"
+    }
+  ],
+  "web.notifications.series.selectSeries": [
+    {
+      "type": 0,
+      "value": "Select "
+    },
+    {
+      "type": 1,
+      "value": "title"
+    }
+  ],
+  "web.notifications.series.selectShown": [
+    {
+      "type": 0,
+      "value": "Select all shown series"
     }
   ],
   "web.notifications.series.sort": [

@@ -93,6 +93,11 @@
 ./internal/catalog TestBoxSetCollectionArtworkDB
 ./internal/catalog TestBoxSetCollectionSyncDB
 
+# Audiobook Series, Authors, and Narrators browse: group counts and durations,
+# cover order, the viewer's own progress, count-sorted cursor pages, the search
+# prefix, and library access.
+./internal/catalog TestAudiobookGroupsDB
+
 # A delegated curator's provider-ID edit can't name a title in another library,
 # which a later refresh would merge the item onto, and the curator's refresh job
 # re-anchors only inside their libraries.
@@ -110,6 +115,10 @@
 
 # A failed play-target read returns its error and the pool reuses its connection.
 ./internal/catalog TestPlayableTargetQueryFailureKeepsConnection
+
+# A book page's related rows carry the viewing profile's own finished or
+# partway state, never another profile's; browse cards name authors in credit order.
+./internal/catalog TestBookPageRelatedStateAndCardAuthorsPostgres
 
 # Series air-date sort keys advance when a known episode airs. The latest
 # available episode air date counts only episodes with a file in a library:
@@ -376,6 +385,10 @@
 ./internal/notifications TestEmailPrefsStayOnTheAccountDB
 ./internal/notifications TestEmailPrefsAccountKeyMigrationResetsSharedRowsDB
 
+# One server runs the notification interest rebuild at a time, and a rebuild
+# that loses its lock session stops before it completes the checkpoint.
+./internal/notifications TestInterestRebuildRunsOnOneServerAtATimeDB
+
 # Legacy mobile registration protects account ownership under the installation lock.
 ./internal/notifications TestLegacyMobilePushRefusesForeignAccountDB
 ./internal/notifications TestLegacyMobilePushProfileSwitchRollbackDB
@@ -601,6 +614,8 @@
 ./internal/userstore/pgstore TestPostgresAtomicJellycompatProgress
 ./internal/userstore/pgstore TestPostgresJellycompatPlayedByDate
 ./internal/userstore/pgstore TestPostgresPersonalListPage
+./internal/userstore/pgstore TestPostgresCompletedHistoryPage
+./internal/userstore/pgstore TestPostgresProgressPage
 ./internal/userstore/pgstore TestPostgresReplaceCollectionItemsWritesOnlyTheDifference
 ./internal/userstore/pgstore TestPostgresRemoveHistoryItemsDeletesTheirPlaysDB
 ./internal/userstore/pgstore TestPostgresReplaceCollectionItemsWaitsOutADelete
@@ -699,6 +714,7 @@
 ./internal/partman TestDropExpiredPartitionsGivesUpOnABusyParentDB
 
 ./internal/downloads TestLocalDownloadCanceledWritePersistsFailureDB
+./internal/downloads TestEphemeralDownloadCompletesOnlyOnWholeFileDB
 ./internal/downloads TestEphemeralDownloadRechecksProfileAccessDB
 
 # Rating sources keep their merge rules, and a trigger keeps the TMDB vote pair
@@ -781,6 +797,10 @@
 # cleared or the installed version changes.
 ./internal/plugins TestInstallationStoreUpdateFailureDB
 
+# Updating an installed plugin from its catalog stops the running plugin only
+# after the new package passed its download and checksum checks.
+./internal/plugins TestServiceInstallCatalogStopsPluginOnlyForAnAcceptedPackageDB
+
 # Autoscan poll markers restart from now, and poll at once, only when the upstream changes.
 ./internal/autoscan TestUpdateSourceMarkerReset
 ./internal/autoscan TestUpdateConnectionMarkerReset
@@ -848,13 +868,15 @@
 ./internal/recommendations TestTasteProfileSubjectsSkipDeletedProfilesPostgres
 ./internal/recommendations TestTasteSeedCandidatesHonourAccessPostgres
 ./internal/recommendations TestProgressReadsMatchStoreWalkPostgres
+./internal/recommendations TestRewatchCountsReadTheWholeHistoryPostgres
 ./internal/sections TestRecommendationSectionsFillFromTheWholePoolPostgres
 ./internal/webhooksync TestWebhookEventsReportSignalChangesPostgres
 ./migrations TestPurgeOrphanedRecommendationRowsPostgres
 
 # Recommendation ranking and rows: default rows, Popular floor, genre rows, picker
 # order, taste levels, per-interest anchors, quality prior, rubric leakage,
-# media types of personal rows.
+# media types of personal rows, Because You Watched anchors per library.
+./internal/recommendations TestBecauseYouWatchedAnchorsEachLibraryOnItsOwnWatchesPostgres
 ./internal/recommendations TestCacheUserRowsDoNotAnchorOnDislikedTitlesPostgres
 ./internal/recommendations TestCatalogRankLeadsWithNotableTrustedRatingsPostgres
 ./internal/recommendations TestDefaultRowsLeaveOutASeriesRatedThroughAnEpisodePostgres
@@ -1294,3 +1316,34 @@
 # Smart collection collage records: a refresh deletes the collection's records
 # nobody refreshed for a week, with or without a collage, and keeps the rest.
 ./internal/catalog TestSmartCollageRecordsRetireWhenUnrefreshedDB
+
+# Transcode node keys: issuing stores only ciphertext and moves neither the
+# admin revision nor the pool generation, proxies and missing rows are
+# refused, and the credential registry loads disabled nodes and rotations.
+# Two transcode nodes cannot share a canonical URL.
+./internal/nodepool TestIssueNodeKeyDB
+./internal/nodepool TestTranscodeNodeURLsAreUniqueDB
+
+# Transcode node source access: local or core is stored configuration that
+# moves the admin revision and pool generation; a proxy can only hold local,
+# refused by the store and by the check constraint.
+./internal/nodepool TestSourceAccessIsTranscodeConfigurationDB
+
+# Admin node writes reach every credential registry: the writing API server's
+# before it answers (a deleted node's key is refused at once, a moved node is
+# signable at its new URL, a disabled one keeps its key), a proxy's through
+# node_pool_changed, and another API server's through its reconciliation.
+./cmd/silo TestNodeWritesReachEveryCredentialRegistryDB
+
+# Transcode node control plane: the core authenticates node calls against the
+# real credential registry (a disabled node keeps its access; a proxy row, a
+# keyless or deleted node is refused), and stores a node's shipped log entries
+# under the authenticated node with timestamps clamped to the core's window and
+# a client_ip that is not an address cleared, so the batch stores in one insert.
+./internal/nodecontrol TestRequireNodeWithTheCredentialRegistryDB
+./internal/opslog TestInsertNodeBatchStampsTheNodeAndClearsABadAddressDB
+./internal/opslog TestInsertNodeBatchClampsTimestampsDB
+
+# A transcode node's source grant is honored only while the catalog has its
+# exact media file: the row id, at exactly the granted path, not missing.
+./internal/scanner TestFileRepositoryIsActiveFileDB
