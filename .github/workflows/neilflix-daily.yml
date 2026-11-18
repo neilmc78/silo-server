@@ -9,7 +9,7 @@
 # (or comments on) the issue labelled daily-build. A failed image build is
 # reported by GitHub's own failed-workflow email.
 #
-# Pushes use the FORK_SYNC_TOKEN secret (Contents and Workflows write):
+# Pushes use the SILO_FORK_SYNC_TOKEN secret (Contents and Workflows write):
 # GITHUB_TOKEN may not push Silo's .github/workflows changes, and its pushes
 # never start other workflows, so main would not build.
 name: NeilFlix daily
@@ -51,16 +51,16 @@ jobs:
       - name: Require the push token
         if: ${{ !inputs.dry_run }}
         env:
-          TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+          TOKEN: ${{ secrets.SILO_FORK_SYNC_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo "::error::Add a FORK_SYNC_TOKEN secret: a token with Contents and Workflows write on this repo."
+            echo "::error::Add a SILO_FORK_SYNC_TOKEN secret: a token with Contents and Workflows write on this repo."
             exit 1
           fi
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.FORK_SYNC_TOKEN || github.token }}
+          token: ${{ secrets.SILO_FORK_SYNC_TOKEN || github.token }}
       - name: Git identity
         run: |
           git config user.name "github-actions[bot]"
@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.FORK_SYNC_TOKEN }}
+          token: ${{ secrets.SILO_FORK_SYNC_TOKEN }}
       # Plain push: fast-forward or fail. Starts neilflix-image.yml.
       - name: Fast-forward main
         run: git push origin "${{ needs.assemble.outputs.sha }}:refs/heads/main"
