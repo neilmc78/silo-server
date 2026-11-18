@@ -16,8 +16,9 @@ func (d serverDefaults) Get(_ context.Context, key string) (string, error) { ret
 
 // The server counts seasons and episodes for a card only when the profile
 // draws the availability badge, so this must agree with how clients resolve
-// the same two settings: the profile's own choice wins either way, and a
-// profile that has not chosen follows the server-wide default.
+// the same two settings. In this fork the badges belong to the administrator
+// (settingskeys.AdminOwned): a profile's stored choice is ignored and only the
+// server-wide default decides.
 func TestViewerPreferencesCardAvailability(t *testing.T) {
 	const (
 		badgeOn  = `{"version":2,"preset":"classic","order":[],"items":{"availability":{"enabled":true,"position":"top-left"}}}`
@@ -33,17 +34,17 @@ func TestViewerPreferencesCardAvailability(t *testing.T) {
 		want     bool
 	}{
 		{name: "nothing stored anywhere"},
-		{name: "profile turns the badge on", overlays: badgeOn, want: true},
+		{name: "profile turns the badge on (ignored)", overlays: badgeOn},
 		{name: "profile document without the badge", overlays: noBadge},
 		{name: "profile turned badges off", overlays: badgeOn, enabled: "false"},
 		{name: "server turned badges off, profile has not chosen", overlays: badgeOn,
 			defaults: serverDefaults{OverlaysEnabledSettingKey: "false"}},
-		{name: "profile turned badges on over the server default", overlays: badgeOn, enabled: "true",
-			defaults: serverDefaults{OverlaysEnabledSettingKey: "false"}, want: true},
+		{name: "profile turned badges on over the server default (ignored)", overlays: badgeOn, enabled: "true",
+			defaults: serverDefaults{OverlaysEnabledSettingKey: "false"}},
 		{name: "server default document turns the badge on",
 			defaults: serverDefaults{DefaultCardOverlaysSettingKey: badgeOn}, want: true},
-		{name: "profile document wins over the server default", overlays: badgeOff,
-			defaults: serverDefaults{DefaultCardOverlaysSettingKey: badgeOn}},
+		{name: "server default wins over the profile document", overlays: badgeOff,
+			defaults: serverDefaults{DefaultCardOverlaysSettingKey: badgeOn}, want: true},
 		{name: "first-version server default document",
 			defaults: serverDefaults{DefaultCardOverlaysSettingKey: flatOn}, want: true},
 		{name: "unreadable server default document",

@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/Silo-Server/silo-server/internal/settingscontract"
+	"github.com/Silo-Server/silo-server/internal/settingskeys"
 	"github.com/Silo-Server/silo-server/internal/userstore"
 )
 
@@ -386,7 +387,9 @@ func (r *Resolver) resolveOne(
 	}
 
 	for _, scope := range def.ResolutionOrder {
-		if scope == settingscontract.ScopeDefault {
+		// Only the administrator's default decides an admin-owned setting; a
+		// value a profile stored before is ignored.
+		if scope == settingscontract.ScopeDefault || settingskeys.AdminOwned(def.Key) {
 			break
 		}
 		row, ok := pickForScope(scope, candidates, rc)
