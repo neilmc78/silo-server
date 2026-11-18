@@ -40,9 +40,19 @@ jobs:
       conflict_branch: ${{ steps.build.outputs.conflict_branch }}
       conflict_files: ${{ steps.build.outputs.conflict_files }}
     steps:
+      - name: Require the push token
+        env:
+          TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Add a FORK_SYNC_TOKEN secret: a token with Contents and Workflows write on this repo. GITHUB_TOKEN cannot push Silo's workflow changes."
+            exit 1
+          fi
+      # Silo's commits change .github/workflows, which GITHUB_TOKEN may not push.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.FORK_SYNC_TOKEN }}
       - name: Git identity
         run: |
           git config user.name "github-actions[bot]"
@@ -119,11 +129,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Require the push token
+        env:
+          TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Add a FORK_SYNC_TOKEN secret: a token with Contents and Workflows write on this repo. GITHUB_TOKEN cannot push Silo's workflow changes."
+            exit 1
+          fi
+      # Silo's commits change .github/workflows, which GITHUB_TOKEN may not push.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # A push with GITHUB_TOKEN does not start neilflix-image.yml, so the
-      # image is not rebuilt. Plain push: fast-forward or fail.
+          token: ${{ secrets.FORK_SYNC_TOKEN }}
+      # Plain push: fast-forward or fail. The token push also starts
+      # neilflix-image.yml for main; it reuses the cache and tags the same SHA.
       - name: Fast-forward main
         run: git push origin "${{ needs.assemble.outputs.sha }}:refs/heads/main"
       - uses: docker/setup-buildx-action@v3
