@@ -1,0 +1,137 @@
+# Daily fork build: Silo's main plus every branch in .github/fork-branches.txt.
+#
+# 1. Copy Silo's main to the upstream branch.
+# 2. Build build/<date>: upstream, then each fork branch merged on top.
+# 3. Fast-forward main to that build. The push starts neilflix-image.yml,
+#    which moves :neilflix only if the image builds.
+#
+# A conflict or a commit that exists only on main leaves main alone and opens
+# (or comments on) the issue labelled daily-build. A failed image build is
+# reported by GitHub's own failed-workflow email.
+#
+# Pushes use the FORK_SYNC_TOKEN secret (Contents and Workflows write):
+# GITHUB_TOKEN may not push Silo's .github/workflows changes, and its pushes
+# never start other workflows, so main would not build.
+name: NeilFlix daily
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Build and report without pushing anything
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: neilflix-daily
+  cancel-in-progress: false
+
+env:
+  DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      changed: ${{ steps.build.outputs.changed }}
+      sha: ${{ steps.build.outputs.sha }}
+      branch: ${{ steps.build.outputs.branch }}
+      upstream: ${{ steps.build.outputs.upstream }}
+      failure: ${{ steps.build.outputs.failure }}
+      conflict_branch: ${{ steps.build.outputs.conflict_branch }}
+      conflict_files: ${{ steps.build.outputs.conflict_files }}
+    steps:
+      - name: Require the push token
+        if: ${{ !inputs.dry_run }}
+        env:
+          TOKEN: ${{ secrets.FORK_SYNC_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::Add a FORK_SYNC_TOKEN secret: a token with Contents and Workflows write on this repo."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.FORK_SYNC_TOKEN || github.token }}
+      - name: Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Assemble build branch
+        id: build
+        run: scripts/fork/daily-build.sh
+      - name: Summary
+        if: always()
+        env:
+          CHANGED: ${{ steps.build.outputs.changed }}
+          BRANCH: ${{ steps.build.outputs.branch }}
+          UP: ${{ steps.build.outputs.upstream }}
+        run: |
+          {
+            echo "### NeilFlix daily"
+            echo "- Silo main: \`${UP:-?}\`"
+            echo "- Build branch: \`${BRANCH:-none}\`"
+            echo "- Changed: ${CHANGED:-n/a}; dry run: $DRY_RUN"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  promote:
+    needs: assemble
+    if: needs.assemble.outputs.changed == 'true' && !inputs.dry_run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.FORK_SYNC_TOKEN }}
+      # Plain push: fast-forward or fail. Starts neilflix-image.yml.
+      - name: Fast-forward main
+        run: git push origin "${{ needs.assemble.outputs.sha }}:refs/heads/main"
+      - name: Close daily-build issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.assemble.outputs.branch }}
+        run: |
+          for n in $(gh issue list --label daily-build --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "Fixed: $BRANCH shipped to main."
+          done
+
+  report:
+    needs: [assemble, promote]
+    if: failure() && !inputs.dry_run
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Open or update daily-build issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILURE: ${{ needs.assemble.outputs.failure }}
+          BRANCH: ${{ needs.assemble.outputs.branch }}
+          UP: ${{ needs.assemble.outputs.upstream }}
+          CONFLICT_BRANCH: ${{ needs.assemble.outputs.conflict_branch }}
+          CONFLICT_FILES: ${{ needs.assemble.outputs.conflict_files }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          case "$FAILURE" in
+            conflict) what="\`$CONFLICT_BRANCH\` conflicts with Silo \`$UP\`. Rebase that branch onto \`upstream\` (never merge upstream into it), resolve, and force-push it."
+                      files=$(printf '%s\n' "$CONFLICT_FILES" | sed 's/^/- `/; s/$/`/') ;;
+            orphans)  what="main has commits no fork branch carries. Move them onto a listed branch; the run log lists them." ;;
+            *)        what="The daily build failed before reaching main. The run log has the details." ;;
+          esac
+          body=$(printf '%s\n\n%s\n\nBuild branch: `%s`\nRun: %s\n' "$what" "${files:-}" "${BRANCH:-none}" "$RUN_URL")
+          gh label create daily-build --color B60205 --description "Daily fork build is blocked" 2>/dev/null || true
+          n=$(gh issue list --label daily-build --state open --json number --jq '.[0].number')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body "$body"
+          else
+            gh issue create --title "Daily build blocked" --label daily-build --body "$body"
+          fi
