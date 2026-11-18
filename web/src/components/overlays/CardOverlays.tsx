@@ -1,4 +1,11 @@
-import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import { useLanguageNamesLoaded } from "@/lib/languageNamesLoader";
 import {
@@ -6,12 +13,15 @@ import {
   WORDMARK_TEXT,
   applyOverlayStyle,
   getPreset,
+  layoutPrefsFor,
   orderedOverlaysForPosition,
   overlayImageUrl,
   readableTextOn,
+  scoreColor,
 } from "@/lib/overlays";
 import { cn } from "@/lib/utils";
 import type {
+  BadgePart,
   CardOverlayPrefs,
   OverlayData,
   OverlayDef,
@@ -156,6 +166,8 @@ interface ResolvedBadge {
   // The rating's source mark and bare score, when the preset draws chips or
   // an uploaded image already shows the source.
   sourceMark: string | null;
+  // Logos (and text between them) drawn in place of the label.
+  parts: BadgePart[] | null;
   score: string | null;
 }
 
@@ -178,13 +190,21 @@ function resolveBadge(
     label,
     // The viewer's own accent wins; a data-driven accent (amber for a title
     // that needs attention) comes before the badge's default.
-    accentColor: config?.accentColor ?? def.getAccent?.(data) ?? def.defaultAccent,
+    // A badge coloured by status takes its state's colour ahead of all that.
+    accentColor:
+      (config?.dynamicColor ? def.statusAccent?.(data) : null) ??
+      config?.accentColor ??
+      def.getAccent?.(data) ??
+      def.defaultAccent,
     iconId: showIcon ? candidateIcon : null,
     image: config?.image ?? null,
     valueImage: (valueKey !== null && config?.valueImages?.[valueKey]) || null,
     valueKey,
     sourceMark: def.sourceMark && score !== null ? def.sourceMark : null,
     score,
+    // Logos only when the viewer turned the badge's icon on themselves, so a
+    // preset that prefers icons keeps its drawn marks.
+    parts: def.iconCapable && config?.showIcon === true ? (def.getParts?.(data) ?? null) : null,
   };
 }
 
@@ -315,6 +335,62 @@ function Badge({ badge, preset, scalingMode, rail }: BadgeProps) {
 
   const iconImage = badge.image && !failedImages.has(badge.image) ? badge.image : null;
   const iconSize = length(preset.iconSize, POSTER_VARS.iconSize);
+
+  if (badge.parts && !iconImage) {
+    // A logo stands about as tall as the badge's text and icons.
+    // A logo stands as tall as the badge's capitals plus a little, in em of
+    // the badge's own font size, so it scales with the size setting and sits
+    // level with the text beside it.
+    const logoHeight = "0.8em";
+    return (
+      <span
+        {...dataAttributes}
+        aria-label={badge.label}
+        className={`inline-flex max-w-full min-w-0 items-center gap-1 ${preset.badgeClass}`}
+        style={{ ...preset.badgeStyle(badge.accentColor), ...geometry }}
+      >
+        {/* A text strut: a logo-only badge stands as tall as a text badge, so
+            logos beside each other sit level. Its negative margin cancels the gap. */}
+        <span aria-hidden="true" data-overlay-strut="" className="-me-1 w-0 overflow-hidden">
+          {/* eslint-disable-next-line formatjs/no-literal-string-in-jsx -- an invisible zero-width space that sets the line height, never read */}
+          {"\u200b"}
+        </span>
+        {badge.parts.map((part, index) =>
+          part.kind === "logo" ? (
+            <img
+              key={index}
+              src={part.src}
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              decoding="async"
+              // A logo keeps its size beside the text; a crowded edge scales
+              // as a whole instead (FitEdge).
+              className="block shrink-0 object-contain"
+              style={{ height: logoHeight, width: "auto" }}
+            />
+          ) : part.scoreFraction !== undefined ? (
+            <span
+              key={index}
+              aria-hidden="true"
+              className="shrink-0 rounded-full px-[0.45em] py-[0.1em] leading-tight font-bold"
+              style={{
+                background: scoreColor(part.scoreFraction),
+                color: "#111111",
+                textShadow: "none",
+              }}
+            >
+              {part.text}
+            </span>
+          ) : (
+            <span key={index} aria-hidden="true" className="shrink-0">
+              {part.text}
+            </span>
+          ),
+        )}
+      </span>
+    );
+  }
   // An uploaded image beside a rating stands for its source, so the label
   // drops the mark; the plate preset draws the mark as a chip instead.
   const sourceChip = !iconImage && preset.sourceChips && badge.sourceMark !== null;
@@ -367,14 +443,15 @@ function BadgeStack({
   rail,
 }: {
   badges: ResolvedBadge[];
-  align: "start" | "end";
+  align: "start" | "center" | "end";
   preset: OverlayPreset;
   scalingMode: ScalingMode;
   rail?: Rail;
 }) {
+  const items = { start: "items-start", center: "items-center", end: "items-end" }[align];
   return (
     <div
-      className={`flex min-w-0 flex-col ${align === "start" ? "items-start" : "items-end"} ${preset.gapClass}`}
+      className={`flex min-w-0 flex-col ${items} ${preset.gapClass}`}
       style={{ gap: overlayLength(preset.stackGap, scalingMode, POSTER_VARS.stackGap) }}
     >
       {badges.map((badge) => (
@@ -386,6 +463,112 @@ function BadgeStack({
           rail={rail}
         />
       ))}
+    </div>
+  );
+}
+
+// The smallest a crowded edge scales to. Below it the edge keeps this size and
+// its badges wrap or truncate as they would unscaled.
+const FIT_FLOOR = 0.6;
+
+// The width an edge's badges want, unwrapped and untruncated.
+function naturalWidth(row: HTMLElement): number {
+  const before = row.style.width;
+  row.style.width = "max-content";
+  const width = row.getBoundingClientRect().width;
+  row.style.width = before;
+  return width;
+}
+
+// Scales an edge's badges as one unit when they would not fit across the
+// card, so text, logos and padding shrink together rather than one badge
+// truncating or one logo shrinking alone. Edges that fit are untouched.
+function FitEdge({ children }: { children: ReactNode }) {
+  const edgeRef = useRef<HTMLDivElement>(null);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const edge = edgeRef.current;
+    const row = rowRef.current;
+    if (!edge || !row) return;
+    const fit = () => {
+      const available = edge.getBoundingClientRect().width;
+      // Measured at full size: zoom scales what getBoundingClientRect reports.
+      row.style.zoom = "";
+      if (available <= 0) return;
+      const natural = naturalWidth(row);
+      if (natural <= available + 0.5) return;
+      // A pixel spare absorbs subpixel rounding, which would cut a label short.
+      const factor = Math.max(FIT_FLOOR, (available - 2) / natural);
+      // A percentage width resolves inside the zoom, so the row still spans
+      // the edge.
+      row.style.zoom = String(factor);
+    };
+    fit();
+    // Badges grow when an image loads.
+    const images = Array.from(row.querySelectorAll("img"));
+    for (const img of images) img.addEventListener("load", fit);
+    let observer: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== "undefined") {
+      let lastWidth = edge.getBoundingClientRect().width;
+      observer = new ResizeObserver(() => {
+        // Only a new card width needs a new fit; this edge's own zoom changes
+        // its height, which would otherwise call back forever.
+        const width = edge.getBoundingClientRect().width;
+        if (Math.abs(width - lastWidth) < 0.5) return;
+        lastWidth = width;
+        fit();
+      });
+      observer.observe(edge);
+    }
+    return () => {
+      observer?.disconnect();
+      for (const img of images) img.removeEventListener("load", fit);
+    };
+  });
+
+  return (
+    <div ref={edgeRef} className="w-full min-w-0">
+      <div ref={rowRef} data-fit-row="" className="w-full min-w-0">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// An edge holding a centre stack: the corners at their own widths and the
+// centre stack centred in the space between them, which is the card's centre
+// line whenever the corners match. FitEdge scales the row when it is too wide.
+function EdgeColumns({
+  start,
+  center,
+  end,
+  edge,
+  preset,
+  scalingMode,
+}: {
+  start: ResolvedBadge[];
+  center: ResolvedBadge[];
+  end: ResolvedBadge[];
+  edge: "top" | "bottom";
+  preset: OverlayPreset;
+  scalingMode: ScalingMode;
+}) {
+  const gap = overlayLength(EDGE_GAP, scalingMode, POSTER_VARS.edgeGap);
+  return (
+    <div
+      className={cn("flex w-full min-w-0", edge === "top" ? "items-start" : "items-end")}
+      style={{ gap }}
+    >
+      <div className="flex min-w-0 shrink-0 justify-start">
+        <BadgeStack badges={start} align="start" preset={preset} scalingMode={scalingMode} />
+      </div>
+      <div data-overlay-edge={`${edge}-center`} className="flex min-w-0 flex-1 justify-center">
+        <BadgeStack badges={center} align="center" preset={preset} scalingMode={scalingMode} />
+      </div>
+      <div className="flex min-w-0 shrink-0 justify-end">
+        <BadgeStack badges={end} align="end" preset={preset} scalingMode={scalingMode} />
+      </div>
     </div>
   );
 }
@@ -524,10 +707,12 @@ function BandMarks({
 // end, so a badge can never swallow a click aimed at an action underneath it.
 export default function CardOverlays({
   data,
-  prefs,
+  prefs: documentPrefs,
   variant = "poster",
   hasProgressBar = false,
 }: CardOverlaysProps) {
+  // Series cards draw the series layout when the viewer set one up.
+  const prefs = layoutPrefsFor(documentPrefs, data.kind);
   // The language badge resolves names from lazily loaded data and stays empty
   // until it arrives; this re-renders the card when it does. Cards without the
   // badge skip the re-render.
@@ -543,6 +728,8 @@ export default function CardOverlays({
       .slice(0, limit);
 
   const topLeft = resolve("top-left", MAX_BADGES_PER_CORNER);
+  const topCenter = resolve("top-center", MAX_BADGES_PER_CORNER);
+  const bottomCenter = resolve("bottom-center", MAX_BADGES_PER_CORNER);
   const bottomLeft = resolve("bottom-left", MAX_BADGES_PER_CORNER);
   const bottomRight = resolve("bottom-right", MAX_BADGES_PER_CORNER);
   const leftRail = resolve("left-edge", MAX_BADGES_PER_RAIL);
@@ -624,7 +811,7 @@ export default function CardOverlays({
       data-card-overlays={variant}
       className="@container/card-overlays pointer-events-none absolute inset-0 z-10"
     >
-      {topLeft.length > 0 &&
+      {(topLeft.length > 0 || topCenter.length > 0) &&
         (band ? (
           <div
             data-overlay-edge="top"
@@ -637,15 +824,44 @@ export default function CardOverlays({
               paddingBottom: `calc(${edgeInset} * 3)`,
             }}
           >
-            <BandMarks badges={topLeft} preset={preset} scalingMode={scalingMode} />
+            <BandMarks
+              badges={[...topLeft, ...topCenter]}
+              preset={preset}
+              scalingMode={scalingMode}
+            />
           </div>
         ) : (
           <div
             data-overlay-edge="top"
             className="pointer-events-none absolute inset-x-2 top-2 z-10 flex items-start justify-start gap-2"
-            style={{ top: edgeInset, right: topRight, left: edgeInset, gap: edgeGap }}
+            // With a centre stack the row spans the card, so the centre is the
+            // card's; its empty right column sits under the watch-status corner.
+            style={{
+              top: edgeInset,
+              right: topCenter.length > 0 ? edgeInset : topRight,
+              left: edgeInset,
+              gap: edgeGap,
+            }}
           >
-            <BadgeStack badges={topLeft} align="start" preset={preset} scalingMode={scalingMode} />
+            <FitEdge>
+              {topCenter.length > 0 ? (
+                <EdgeColumns
+                  start={topLeft}
+                  center={topCenter}
+                  end={[]}
+                  edge="top"
+                  preset={preset}
+                  scalingMode={scalingMode}
+                />
+              ) : (
+                <BadgeStack
+                  badges={topLeft}
+                  align="start"
+                  preset={preset}
+                  scalingMode={scalingMode}
+                />
+              )}
+            </FitEdge>
           </div>
         ))}
       {leftRail.length > 0 && (
@@ -678,7 +894,7 @@ export default function CardOverlays({
           />
         </div>
       )}
-      {(bottomLeft.length > 0 || bottomRight.length > 0) &&
+      {(bottomLeft.length > 0 || bottomRight.length > 0 || bottomCenter.length > 0) &&
         (band ? (
           /* One centred strip for the whole bottom edge, left corner first. */
           <div
@@ -697,7 +913,7 @@ export default function CardOverlays({
             }}
           >
             <BandMarks
-              badges={[...bottomLeft, ...bottomRight]}
+              badges={[...bottomLeft, ...bottomCenter, ...bottomRight]}
               preset={preset}
               scalingMode={scalingMode}
             />
@@ -716,13 +932,26 @@ export default function CardOverlays({
             )}
             style={{ right: edgeInset, bottom: edgeInset, left: edgeInset }}
           >
-            <BottomRows
-              left={bottomLeft}
-              right={bottomRight}
-              preset={preset}
-              scalingMode={scalingMode}
-              gap={edgeGap}
-            />
+            <FitEdge>
+              {bottomCenter.length > 0 ? (
+                <EdgeColumns
+                  start={bottomLeft}
+                  center={bottomCenter}
+                  end={bottomRight}
+                  edge="bottom"
+                  preset={preset}
+                  scalingMode={scalingMode}
+                />
+              ) : (
+                <BottomRows
+                  left={bottomLeft}
+                  right={bottomRight}
+                  preset={preset}
+                  scalingMode={scalingMode}
+                  gap={edgeGap}
+                />
+              )}
+            </FitEdge>
           </div>
         ))}
     </div>

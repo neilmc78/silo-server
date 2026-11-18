@@ -3,6 +3,9 @@
 // file layout free of consumer churn.
 
 export type {
+  BadgePart,
+  OverlayCardKind,
+  OverlaySeriesLayout,
   AccentStrategy,
   CardOverlayPrefs,
   OverlayCategory,
@@ -23,6 +26,7 @@ export type {
 
 export { OVERLAY_REGISTRY, OVERLAY_MAP, getOverlayDef, isOverlayOffered } from "./registry";
 export { OVERLAY_POSITIONS, OVERLAY_CATEGORIES, WORDMARK_TEXT } from "./types";
+export { overlayLogo, scoreColor } from "./logos";
 export {
   buildDefaultPrefs,
   parseOverlayPrefs,
@@ -39,6 +43,9 @@ export {
   STYLE_SIZE_MIN,
   supportsOverlayStyles,
   withoutUnlistedImages,
+  layoutPrefsFor,
+  moveInStack,
+  withLayoutEdit,
   requestDownloadBarPercent,
   storedOverlayIds,
 } from "./schema";
@@ -55,6 +62,8 @@ export {
   overlayDataFromWatchlistTitle,
 } from "./extractors";
 export {
+  OVERLAY_SAMPLE_CHOICES,
+  withSampleOverrides,
   OVERLAY_PREVIEW_SAMPLES,
   OVERLAY_PREVIEW_VARIANTS,
   OVERLAY_PREVIEW_WATCH_STATES,
@@ -62,5 +71,9 @@ export {
   SAMPLE_REQUEST_DATA,
   SAMPLE_SHOW_DATA,
 } from "./sample-data";
-export type { OverlayPreviewVariant } from "./sample-data";
+export type {
+  OverlayPreviewVariant,
+  OverlaySampleField,
+  OverlaySampleOverrides,
+} from "./sample-data";
 export { ATTENTION_ACCENT } from "./registry/ribbons";
