@@ -127,6 +127,13 @@ func (h *AuthHandler) Login(ctx context.Context, in LoginInput) (TokenPairView, 
 		if throttled, ok := errors.AsType[*auth.SignInThrottledError](err); ok {
 			return TokenPairView{}, signInThrottledError(throttled)
 		}
+		// v2 answers the second step itself (loginProblem); v1 cannot.
+		if stepUp, ok := errors.AsType[*auth.SecondFactorRequiredError](err); ok {
+			return TokenPairView{}, stepUp
+		}
+		if errors.Is(err, auth.ErrSecondFactorUnsupported) {
+			return TokenPairView{}, secondFactorUnsupportedError()
+		}
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			return TokenPairView{}, apiError(http.StatusUnauthorized, "invalid_credentials", "Invalid username or password")
 		}
@@ -418,4 +425,11 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 		Error:   code,
 		Message: message,
 	})
+}
+
+// secondFactorUnsupportedError refuses a correct password for an account with
+// two-step sign-in on a surface that cannot ask for the second step.
+func secondFactorUnsupportedError() *APIError {
+	return apiError(http.StatusUnauthorized, "second_factor_required",
+		"This account uses two-step sign-in. Sign in with an app that supports it, or use a device code")
 }
