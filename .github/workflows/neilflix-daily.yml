@@ -1,11 +1,13 @@
 # Daily fork build: Silo's main plus every branch in .github/fork-branches.txt.
 #
 # 1. Copy Silo's main to the upstream branch.
-# 2. Build build/<date>: upstream, then each fork branch merged on top.
-# 3. Fast-forward main to that build. The push starts neilflix-image.yml,
-#    which moves :neilflix only if the image builds.
+# 2. Build build/<date>: upstream, then each fork branch's own commits
+#    replayed on top. No merge commits: main is Silo plus the fork's commits.
+# 3. Force-push main to that build, only while main is still the previous
+#    build. The push starts neilflix-image.yml, which moves :neilflix only if
+#    the image builds.
 #
-# A conflict or a commit that exists only on main leaves main alone and opens
+# A conflict or a commit pushed to main by hand leaves main alone and opens
 # (or comments on) the issue labelled daily-build. A failed image build is
 # reported by GitHub's own failed-workflow email.
 #
@@ -44,6 +46,7 @@ jobs:
       sha: ${{ steps.build.outputs.sha }}
       branch: ${{ steps.build.outputs.branch }}
       upstream: ${{ steps.build.outputs.upstream }}
+      main_before: ${{ steps.build.outputs.main_before }}
       failure: ${{ steps.build.outputs.failure }}
       conflict_branch: ${{ steps.build.outputs.conflict_branch }}
       conflict_files: ${{ steps.build.outputs.conflict_files }}
@@ -92,9 +95,13 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.SILO_FORK_SYNC_TOKEN }}
-      # Plain push: fast-forward or fail. Starts neilflix-image.yml.
-      - name: Fast-forward main
-        run: git push origin "${{ needs.assemble.outputs.sha }}:refs/heads/main"
+      # Replaces main, but only if it is still what assemble checked.
+      # Starts neilflix-image.yml.
+      - name: Move main to the build
+        run: >-
+          git push origin
+          --force-with-lease="refs/heads/main:${{ needs.assemble.outputs.main_before }}"
+          "${{ needs.assemble.outputs.sha }}:refs/heads/main"
       - name: Close daily-build issue
         env:
           GH_TOKEN: ${{ github.token }}
@@ -124,7 +131,7 @@ jobs:
           case "$FAILURE" in
             conflict) what="\`$CONFLICT_BRANCH\` conflicts with Silo \`$UP\`. Rebase that branch onto \`upstream\` (never merge upstream into it), resolve, and force-push it."
                       files=$(printf '%s\n' "$CONFLICT_FILES" | sed 's/^/- `/; s/$/`/') ;;
-            orphans)  what="main has commits no fork branch carries. Move them onto a listed branch; the run log lists them." ;;
+            diverged) what="main changed since the last build (a commit pushed to main by hand). Move it onto a fork branch; the run log lists it." ;;
             *)        what="The daily build failed before reaching main. The run log has the details." ;;
           esac
           body=$(printf '%s\n\n%s\n\nBuild branch: `%s`\nRun: %s\n' "$what" "${files:-}" "${BRANCH:-none}" "$RUN_URL")
