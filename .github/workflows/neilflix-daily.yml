@@ -161,7 +161,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           case "$FAILURE" in
-            conflict) what="\`$CONFLICT_BRANCH\` conflicts with Silo \`$UP\`. Rebase or merge Silo into that branch, resolve, and push it."
+            conflict) what="\`$CONFLICT_BRANCH\` conflicts with Silo \`$UP\`. Rebase that branch onto \`upstream\` (never merge upstream into it), resolve, and force-push it."
                       files=$(printf '%s\n' "$CONFLICT_FILES" | sed 's/^/- `/; s/$/`/') ;;
             orphans)  what="main has commits no fork branch carries. Move them onto a listed branch; the run log lists them." ;;
             *)        what="The build or image step failed." ;;
