@@ -53,19 +53,12 @@ type Store interface {
 	SetCollectionArtwork(ctx context.Context, id int64, slot catalog.CollectionArtworkSlot, sourcePath, path, thumbhash string) error
 }
 
-// CollectionSyncer keeps the box set library collections in step with the
-// stored box sets (*catalog.BoxSetCollectionSyncer).
-type CollectionSyncer interface {
-	Sync(ctx context.Context) (catalog.BoxSetCollectionResult, error)
-}
-
 // Result counts what one run did.
 type Result struct {
 	MoviesChecked      int `json:"movies_checked"`
 	CollectionsFetched int `json:"collections_fetched"`
 	ImagesCached       int `json:"images_cached"`
 	Failures           int `json:"failures"`
-	catalog.BoxSetCollectionResult
 }
 
 // Syncer looks up and stores TMDB collections.
@@ -75,9 +68,7 @@ type Syncer struct {
 	// images returns the image cacher, or nil while artwork is served from
 	// the provider (no artwork store, or metadata.cache_images off).
 	images func() metadata.ImageCacher
-	// collections, when set, lists the box sets as library collections.
-	collections CollectionSyncer
-	now         func() time.Time
+	now    func() time.Time
 }
 
 // NewSyncer returns a syncer over store and client.
@@ -92,12 +83,6 @@ func (s *Syncer) WithImages(images func() metadata.ImageCacher) *Syncer {
 	return s
 }
 
-// WithCollections lists the box sets as library collections after each run.
-func (s *Syncer) WithCollections(collections CollectionSyncer) *Syncer {
-	s.collections = collections
-	return s
-}
-
 // Run deletes the collections no movie belongs to any more, looks up every
 // movie of a box set library that is due, then fetches every collection that
 // is due and caches their artwork. It repeats while a lookup finds movies
@@ -107,25 +92,10 @@ func (s *Syncer) WithCollections(collections CollectionSyncer) *Syncer {
 // but is not tried again in this one, so it neither counts as a failure in
 // every batch nor holds back the items behind it.
 func (s *Syncer) Run(ctx context.Context, report func(percent float64, message string)) (Result, error) {
-	if s == nil || s.store == nil || s.tmdb == nil {
-		return Result{}, nil
-	}
-	res, err := s.lookUp(ctx, report)
-	// The library collections follow the stored box sets, so they are
-	// brought in line even when TMDB failed partway through the lookups.
-	if s.collections != nil && ctx.Err() == nil {
-		report(90, "Updating box set collections")
-		synced, syncErr := s.collections.Sync(ctx)
-		res.BoxSetCollectionResult = synced
-		if syncErr != nil {
-			err = errors.Join(err, fmt.Errorf("box sets: syncing collections: %w", syncErr))
-		}
-	}
-	return res, err
-}
-
-func (s *Syncer) lookUp(ctx context.Context, report func(percent float64, message string)) (Result, error) {
 	var res Result
+	if s == nil || s.store == nil || s.tmdb == nil {
+		return res, nil
+	}
 	s.deleteUnusedCollections(ctx)
 	var failedMovies []string
 	var triedCollections []int64
