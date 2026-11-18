@@ -2,7 +2,6 @@
 # One origin branch per line. Remove a branch once Silo has its change.
 fork/automation
 feature/admin-only-card-settings
-feature/box-set-collections
 feature/card-overlays
 feature/maintenance-restart-button
 feature/sign-in-plugin-summary
