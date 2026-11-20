@@ -123,6 +123,9 @@ export interface OverlayItemConfig {
 // The badge layout series cards use when it differs from movies'. The look
 // (preset and style) stays shared.
 export interface OverlaySeriesLayout {
+  // false: switched off but kept, so switching it back on restores it; series
+  // cards use the shared layout meanwhile. Absent: in use.
+  enabled?: false;
   order: OverlayId[];
   items: Record<OverlayId, OverlayItemConfig>;
 }
