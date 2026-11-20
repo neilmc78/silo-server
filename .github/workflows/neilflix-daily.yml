@@ -18,7 +18,10 @@ name: NeilFlix daily
 
 on:
   schedule:
-    - cron: "23 5 * * *"
+    # A Claude scheduled task dispatches this at 05:23 UTC; GitHub runs its
+    # own schedule hours late, so this is the fallback. Whoever last changes
+    # this line gets GitHub's failure notices for scheduled runs.
+    - cron: "47 5 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -127,6 +130,7 @@ jobs:
           CONFLICT_BRANCH: ${{ needs.assemble.outputs.conflict_branch }}
           CONFLICT_FILES: ${{ needs.assemble.outputs.conflict_files }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           case "$FAILURE" in
             conflict) what="\`$CONFLICT_BRANCH\` conflicts with Silo \`$UP\`. Rebase that branch onto \`upstream\` (never merge upstream into it), resolve, and force-push it."
@@ -134,7 +138,9 @@ jobs:
             diverged) what="main changed since the last build (a commit pushed to main by hand). Move it onto a fork branch; the run log lists it." ;;
             *)        what="The daily build failed before reaching main. The run log has the details." ;;
           esac
-          body=$(printf '%s\n\n%s\n\nBuild branch: `%s`\nRun: %s\n' "$what" "${files:-}" "${BRANCH:-none}" "$RUN_URL")
+          # The mention notifies the owner; an issue from github-actions alone
+          # reaches only people watching the repository.
+          body=$(printf '@%s %s\n\n%s\n\nBuild branch: `%s`\nRun: %s\n' "$OWNER" "$what" "${files:-}" "${BRANCH:-none}" "$RUN_URL")
           gh label create daily-build --color B60205 --description "Daily fork build is blocked" 2>/dev/null || true
           n=$(gh issue list --label daily-build --state open --json number --jq '.[0].number')
           if [ -n "$n" ]; then
