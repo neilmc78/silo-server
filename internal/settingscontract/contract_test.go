@@ -1122,7 +1122,9 @@ func TestObjectSchemasAcceptTheShapesClientsStore(t *testing.T) {
 			`"resolution":{"enabled":true,"position":"left-edge",` +
 			`"image":"` + strings.Repeat("ab", 32) + `.webp","valueImages":{"2160p":"` + strings.Repeat("cd", 32) + `.webp"}},` +
 			`"rating_imdb":{"enabled":true,"position":"top-right"},` +
-			`"year":{"enabled":false,"position":"right-edge","showIcon":true}}}`,
+			`"year":{"enabled":false,"position":"right-edge","showIcon":true}},` +
+			`"series":{"enabled":false,"order":["show_status"],` +
+			`"items":{"show_status":{"enabled":true,"position":"bottom-center","dynamicColor":true}}}}`,
 		"ui.sidebar_pins": `{"7":[{"type":"section","id":"recently-added","label":"Recently Added"}],` +
 			`"12":[{"type":"collection","id":"c-9","label":"Marvel"}]}`,
 		"ui.disabled_library_ids":      `[3,9]`,
