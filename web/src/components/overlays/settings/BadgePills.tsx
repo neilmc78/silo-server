@@ -12,6 +12,7 @@ import {
   overlaySuppressedBy,
   getOverlayDef,
   layoutPrefsFor,
+  seriesLayoutActive,
   withLayoutEdit,
   type CardOverlayPrefs,
   type OverlayCardKind,
@@ -54,19 +55,25 @@ export function BadgePills({
 }: BadgePillsProps) {
   const t = useT();
   const seriesSwitchId = useId();
-  const separate = prefs.series !== undefined;
+  const separate = seriesLayoutActive(prefs);
   const editing: OverlayCardKind = separate ? kind : "movie";
   const layout = layoutPrefsFor(prefs, editing);
   const commit = (next: CardOverlayPrefs) => onChange(withLayoutEdit(prefs, editing, next));
 
   const setSeparate = (on: boolean) => {
     if (on) {
-      // Series start from the layout movies use, so nothing moves until edited.
-      onChange({ ...prefs, series: { order: [...prefs.order], items: { ...prefs.items } } });
+      // A layout switched off earlier comes back as it was; otherwise series
+      // start from the layout movies use, so nothing moves until edited.
+      const kept = prefs.series;
+      const series = kept
+        ? { order: kept.order, items: kept.items }
+        : { order: [...prefs.order], items: { ...prefs.items } };
+      onChange({ ...prefs, series });
       onKindChange("series");
-    } else {
-      const { series: _series, ...rest } = prefs;
-      onChange(rest);
+    } else if (prefs.series) {
+      // Switched off, not thrown away: series cards use the movies layout
+      // until it is switched back on.
+      onChange({ ...prefs, series: { ...prefs.series, enabled: false } });
       onKindChange("movie");
     }
   };

@@ -44,6 +44,7 @@ export {
   supportsOverlayStyles,
   withoutUnlistedImages,
   layoutPrefsFor,
+  seriesLayoutActive,
   moveInStack,
   withLayoutEdit,
   requestDownloadBarPercent,

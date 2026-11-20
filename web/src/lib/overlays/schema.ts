@@ -193,6 +193,7 @@ function parseV2(parsed: Record<string, unknown>): CardOverlayPrefs {
   if (series && typeof series === "object" && !Array.isArray(series)) {
     const raw = series as Record<string, unknown>;
     prefs.series = {
+      ...(raw.enabled === false ? { enabled: false as const } : {}),
       order: Array.isArray(raw.order) ? (raw.order as unknown[]).filter(isKnownOverlayId) : [],
       items: buildItems(
         raw.items && typeof raw.items === "object"
@@ -204,14 +205,20 @@ function parseV2(parsed: Record<string, unknown>): CardOverlayPrefs {
   return prefs;
 }
 
+// Whether series cards draw their own layout: the document has one and it is
+// not switched off (kept frozen for when it is switched back on).
+export function seriesLayoutActive(prefs: CardOverlayPrefs): boolean {
+  return prefs.series !== undefined && prefs.series.enabled !== false;
+}
+
 // The layout a card of this kind draws: series cards use the series layout
-// when the document has one, everything else the shared one. The look
-// (preset and style) is the same either way.
+// when it is active, everything else the shared one. The look (preset and
+// style) is the same either way.
 export function layoutPrefsFor(
   prefs: CardOverlayPrefs,
   kind: OverlayCardKind | undefined,
 ): CardOverlayPrefs {
-  if (kind !== "series" || !prefs.series) return prefs;
+  if (kind !== "series" || !prefs.series || !seriesLayoutActive(prefs)) return prefs;
   return { ...prefs, order: prefs.series.order, items: prefs.series.items };
 }
 
@@ -222,7 +229,10 @@ export function withLayoutEdit(
   kind: OverlayCardKind,
   edited: CardOverlayPrefs,
 ): CardOverlayPrefs {
-  if (kind !== "series" || !prefs.series) return edited;
+  if (kind !== "series" || !seriesLayoutActive(prefs)) {
+    // A frozen series layout rides along untouched.
+    return prefs.series && !edited.series ? { ...edited, series: prefs.series } : edited;
+  }
   return {
     ...edited,
     order: prefs.order,
@@ -373,6 +383,7 @@ export function overlayPrefsForServer(
   if (styles) {
     if (!prefs.series) return { ...prefs, order, items };
     const series = {
+      ...(prefs.series.enabled === false ? { enabled: false as const } : {}),
       order: prefs.series.order.filter((id) => isOverlaySupportedBy(id, support)),
       items: forServer(prefs.series.items),
     };
