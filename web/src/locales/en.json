@@ -134225,6 +134225,12 @@
       "value": "Editing badges for"
     }
   ],
+  "web.settings.cardOverlay.layout.inherited": [
+    {
+      "type": 0,
+      "value": "Uses the movie badges"
+    }
+  ],
   "web.settings.cardOverlay.layout.movies": [
     {
       "type": 0,

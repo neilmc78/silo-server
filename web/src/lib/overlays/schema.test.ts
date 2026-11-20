@@ -8,6 +8,7 @@ import {
   overlayPrefsForServer,
   parseOverlayPrefs,
   serializeOverlayPrefs,
+  seriesLayoutActive,
   withLayoutEdit,
   withoutUnlistedImages,
 } from "./schema";
@@ -186,6 +187,58 @@ describe("series layout", () => {
     expect(edited.preset).toBe("pill");
     expect(edited.series?.items.year.enabled).toBe(true);
     expect(edited.items.year.enabled).toBe(base.items.year.enabled);
+  });
+});
+
+describe("series layout switched off", () => {
+  // Switching "separate layout for series" off keeps the series layout saved
+  // (frozen) so switching it back on restores it; meanwhile series cards use
+  // the movies layout.
+  const frozen = () => {
+    const base = buildDefaultPrefs();
+    return {
+      ...base,
+      series: {
+        enabled: false as const,
+        order: [],
+        items: { ...base.items, resolution: { enabled: false, position: "top-left" as const } },
+      },
+    };
+  };
+
+  it("round-trips the switched-off flag with the layout", () => {
+    const prefs = parseOverlayPrefs(JSON.parse(serializeOverlayPrefs(frozen())));
+    expect(prefs.series?.enabled).toBe(false);
+    expect(prefs.series?.items.resolution.enabled).toBe(false);
+    expect(seriesLayoutActive(prefs)).toBe(false);
+  });
+
+  it("draws series cards with the movies layout while switched off", () => {
+    const prefs = frozen();
+    expect(layoutPrefsFor(prefs, "series").items.resolution.enabled).toBe(true);
+    const on = { ...prefs, series: { order: [], items: prefs.series.items } };
+    expect(seriesLayoutActive(on)).toBe(true);
+    expect(layoutPrefsFor(on, "series").items.resolution.enabled).toBe(false);
+  });
+
+  it("edits the movies layout, not the frozen one", () => {
+    const prefs = frozen();
+    const view = layoutPrefsFor(prefs, "series");
+    const edited = withLayoutEdit(prefs, "series", {
+      ...view,
+      items: { ...view.items, year: { enabled: true, position: "top-left" } },
+    });
+    expect(edited.items.year.enabled).toBe(true);
+    expect(edited.series?.items.year.enabled).toBe(prefs.series.items.year.enabled);
+    expect(edited.series?.enabled).toBe(false);
+  });
+
+  it("keeps the flag when saving to the server", () => {
+    const storable = overlayPrefsForServer(frozen(), {
+      manifestRevision: 26,
+      storedIds: new Set(),
+    });
+    expect(storable.series?.enabled).toBe(false);
   });
 });
 

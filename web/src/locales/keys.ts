@@ -13949,6 +13949,7 @@ export type MessageKey =
   | "web.settings.cardOverlay.color"
   | "web.settings.cardOverlay.colorDefault"
   | "web.settings.cardOverlay.layout.editing"
+  | "web.settings.cardOverlay.layout.inherited"
   | "web.settings.cardOverlay.layout.movies"
   | "web.settings.cardOverlay.layout.separate"
   | "web.settings.cardOverlay.layout.separateHint"
