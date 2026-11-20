@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   packages: write
+  issues: write # to report a failed build
 
 concurrency:
   group: neilflix-image-${{ github.ref_name }}
@@ -65,3 +66,24 @@ jobs:
             ${{ env.IMAGE }}:neilflix-${{ github.sha }}
           cache-from: type=gha,scope=aio
           cache-to: type=gha,scope=aio,mode=max
+
+      # Report a failed build on the daily-build issue, mentioning the owner so
+      # GitHub notifies them; the daily build closes it after a clean run. A
+      # run cancelled by a newer push is not a failure.
+      - name: Report the failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body=$(printf '@%s The NeilFlix image build failed on `%s`, so the image was not updated.\n\nRun: %s\n' "$OWNER" "${SHA:0:12}" "$RUN_URL")
+          gh label create daily-build --color B60205 --description "Daily fork build is blocked" 2>/dev/null || true
+          n=$(gh issue list --label daily-build --state open --json number --jq '.[0].number')
+          if [ -n "$n" ]; then
+            gh issue comment "$n" --body "$body"
+          else
+            gh issue create --title "Daily build blocked" --label daily-build --body "$body"
+          fi
