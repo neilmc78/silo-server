@@ -30,6 +30,10 @@
       "additionalProperties": false,
       "required": ["order", "items"],
       "properties": {
+        "enabled": {
+          "description": "false keeps the layout saved but switched off: series cards use order and items above until it is switched back on. Absent means in use.",
+          "type": "boolean"
+        },
         "order": {
           "type": "array",
           "maxItems": 64,
