@@ -22,7 +22,18 @@ function renderPills(prefs: CardOverlayPrefs) {
   return onChange;
 }
 
-const separateSwitch = () => screen.getAllByRole("switch")[0];
+// The "separate layout for series" switch is the first switch the pills draw.
+function separateSwitch(): HTMLElement {
+  const [first] = screen.getAllByRole("switch");
+  if (!first) throw new Error("no switch rendered");
+  return first;
+}
+
+function lastChange(onChange: ReturnType<typeof renderPills>): CardOverlayPrefs {
+  const next = onChange.mock.lastCall?.[0];
+  if (!next) throw new Error("onChange was not called");
+  return next;
+}
 
 describe("separate series layout switch", () => {
   it("keeps the series layout when switched off", () => {
@@ -33,7 +44,7 @@ describe("separate series layout switch", () => {
     };
     const onChange = renderPills({ ...base, series });
     fireEvent.click(separateSwitch());
-    const next = onChange.mock.calls[0][0];
+    const next = lastChange(onChange);
     expect(next.series?.enabled).toBe(false);
     expect(next.series?.items.year.enabled).toBe(true);
   });
@@ -47,7 +58,7 @@ describe("separate series layout switch", () => {
     };
     const onChange = renderPills({ ...base, series });
     fireEvent.click(separateSwitch());
-    const next = onChange.mock.calls[0][0];
+    const next = lastChange(onChange);
     expect(next.series?.enabled).toBeUndefined();
     expect(next.series?.items.year.enabled).toBe(true);
   });
