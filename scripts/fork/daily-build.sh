@@ -104,9 +104,16 @@ for b in "${BRANCHES[@]}"; do
   done
 done
 
+# 5. Name the build. GitHub titles the image run after main's newest commit,
+# which would otherwise be whichever fork commit was replayed last. Empty, so
+# the tree (and the "nothing to ship" check below) is unchanged.
+git commit --quiet --allow-empty \
+  -m "build: NeilFlix $DAY on Silo ${UP:0:8}" \
+  -m "Silo $UP plus the fork's own commits from: ${BRANCHES[*]}"
+
 SHA=$(git rev-parse HEAD)
 out sha "$SHA"
-echo "$BUILD: $(git rev-list --count "$UP..$SHA") fork commits on Silo $UP"
+echo "$BUILD: $(($(git rev-list --count "$UP..$SHA") - 1)) fork commits on Silo $UP"
 if [[ $(git rev-parse "HEAD^{tree}") == $(git rev-parse "$MAIN^{tree}") ]] \
   && git merge-base --is-ancestor "$UP" "$MAIN" \
   && [[ -z $(git rev-list --merges "$UP..$MAIN") ]]; then
