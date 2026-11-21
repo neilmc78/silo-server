@@ -6,6 +6,10 @@
 # The workflow then force-pushes main to this build, but only while main is
 # still the previous build (anything pushed to main by hand stops the run).
 #
+# A listed branch with a <branch>-rebased copy on origin is moved onto that
+# copy first (step 0), which is how a conflicting branch gets fixed without a
+# force-push by hand.
+#
 # Exit codes: 0 built (or nothing changed), 2 conflict, 3 main changed by hand,
 # 1 anything else.
 #
@@ -31,6 +35,27 @@ git fetch --quiet --prune origin '+refs/heads/*:refs/remotes/origin/*'
 for b in "${BRANCHES[@]}"; do
   git rev-parse --verify --quiet "origin/$b^{commit}" >/dev/null \
     || { echo "listed branch origin/$b does not exist" >&2; exit 1; }
+done
+
+# 0. Adopt fixed branches. A listed branch that no longer replays onto Silo is
+# rebased and pushed as <branch>-rebased (a plain push, by hand or by Claude's
+# scheduled task); the build moves the branch onto it here, before anything is
+# replayed, and deletes the copy, so nobody has to force-push. A copy with
+# merge commits is ignored: the replay below would refuse it anyway.
+for b in "${BRANCHES[@]}"; do
+  r="origin/$b-rebased"
+  git rev-parse --verify --quiet "$r^{commit}" >/dev/null || continue
+  base=$(git merge-base origin/upstream "$r" 2>/dev/null || git merge-base "origin/$b" "$r")
+  if [[ -n $(git rev-list --merges "$base..$r") ]]; then
+    echo "$b-rebased has merge commits; ignoring it" >&2
+    continue
+  fi
+  new=$(git rev-parse "$r")
+  old_tip=$(git rev-parse "origin/$b")
+  echo "adopting $b-rebased ($new) as $b (was $old_tip)"
+  push --force-with-lease="refs/heads/$b:$old_tip" origin "$new:refs/heads/$b"
+  push origin --delete "$b-rebased"
+  git update-ref "refs/remotes/origin/$b" "$new"
 done
 
 # 1. Mirror Silo's main onto the upstream branch, fast-forward only.
