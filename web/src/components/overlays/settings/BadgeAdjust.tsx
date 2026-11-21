@@ -14,6 +14,7 @@ import {
   moveInStack,
   orderedOverlaysForPosition,
   POSITION_OPTIONS,
+  readableTextOn,
   type CardOverlayPrefs,
   type OverlayId,
   type OverlayImage,
@@ -206,7 +207,7 @@ export function BadgeAdjust({
                   <Check
                     aria-hidden="true"
                     className="absolute inset-0 m-auto h-3.5 w-3.5"
-                    style={{ color: swatch.value === "#ffffff" ? "black" : "white" }}
+                    style={{ color: readableTextOn(swatch.value) }}
                   />
                 ) : null}
               </button>
