@@ -77,7 +77,7 @@ export function OverlayPreviewRow({
               )}
             />
             {inherited ? (
-              <span className="text-muted-foreground max-w-[140px] text-center text-[11px] leading-snug">
+              <span className="text-muted-foreground max-w-[140px] text-center text-[0.6875rem] leading-snug">
                 {t("web.settings.cardOverlay.layout.inherited")}
               </span>
             ) : null}
