@@ -53,7 +53,7 @@ export function OverlaySampleControls({ value, onChange }: OverlaySampleControls
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 space-y-3 p-4">
-        <p className="text-muted-foreground text-[13px] leading-relaxed">
+        <p className="text-muted-foreground text-[0.8125rem] leading-relaxed">
           {t("web.settings.cardOverlay.sample.hint")}
         </p>
         {(Object.keys(OVERLAY_SAMPLE_CHOICES) as OverlaySampleField[]).map((field) => {

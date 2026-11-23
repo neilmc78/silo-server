@@ -123,11 +123,11 @@ export function BadgeAdjust({
           </div>
           <div className="space-y-1">
             <p className="text-sm font-medium">{t("web.settings.cardOverlay.position")}</p>
-            <p className="text-muted-foreground text-[13px] leading-relaxed">
+            <p className="text-muted-foreground text-[0.8125rem] leading-relaxed">
               {t("web.settings.cardOverlay.positionHint")}
             </p>
             {shortcutsOn && config.position.startsWith("bottom") ? (
-              <p className="text-muted-foreground text-[13px] leading-relaxed">
+              <p className="text-muted-foreground text-[0.8125rem] leading-relaxed">
                 {t("web.settings.cardOverlay.positionShortcutsHint")}
               </p>
             ) : null}
@@ -138,7 +138,7 @@ export function BadgeAdjust({
           <div className="flex items-center justify-between gap-3">
             <div className="space-y-0.5">
               <p className="text-sm font-medium">{t("web.settings.cardOverlay.order.title")}</p>
-              <p className="text-muted-foreground text-[13px]">
+              <p className="text-muted-foreground text-[0.8125rem]">
                 {t("web.settings.cardOverlay.order.place", {
                   place: place + 1,
                   total: stack.length,
@@ -221,7 +221,7 @@ export function BadgeAdjust({
               <Label htmlFor={statusColorId} className="text-sm font-medium">
                 {t("web.settings.cardOverlay.statusColor.label")}
               </Label>
-              <p className="text-muted-foreground text-[13px] leading-relaxed">
+              <p className="text-muted-foreground text-[0.8125rem] leading-relaxed">
                 {t("web.settings.cardOverlay.statusColor.hint")}
               </p>
             </div>
