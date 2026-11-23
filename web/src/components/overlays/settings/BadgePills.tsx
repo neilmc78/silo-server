@@ -86,7 +86,7 @@ export function BadgePills({
             <Label htmlFor={seriesSwitchId} className="text-sm font-medium">
               {t("web.settings.cardOverlay.layout.separate")}
             </Label>
-            <p className="text-muted-foreground text-[13px] leading-relaxed">
+            <p className="text-muted-foreground text-[0.8125rem] leading-relaxed">
               {t("web.settings.cardOverlay.layout.separateHint")}
             </p>
           </div>

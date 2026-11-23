@@ -142,7 +142,7 @@ export function CardOverlaySettings({ onShortcutsPicked }: { onShortcutsPicked?:
           />
         </div>
 
-        <p className="text-muted-foreground -mt-1 text-[13px] leading-relaxed">
+        <p className="text-muted-foreground -mt-1 text-[0.8125rem] leading-relaxed">
           {t("web.settings.cardOverlay.showBadgesHint")}
         </p>
 
