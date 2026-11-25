@@ -952,7 +952,9 @@ func (s *Service) loginWithProvider(
 			return nil
 		})
 		if err == nil && stepUp != nil {
-			return nil, nil, stepUp
+			// The account lets the caller's sign-in budget tell whose password
+			// matched (finishSignIn); callers check the error first.
+			return nil, user, stepUp
 		}
 	} else {
 		// Account resolution committed in its own transaction. Open the
