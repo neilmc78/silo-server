@@ -65,7 +65,9 @@ func (s *Service) reserveSecondStep(ctx context.Context, userID int) error {
 	if s.signInAttempts == nil {
 		return nil
 	}
-	if retryAfter, ok := s.signInAttempts.Reserve(ctx, secondStepKey(userID)); !ok {
+	// No address is passed: the second step has one budget per account,
+	// and no address can spend a budget of its own once that is used.
+	if _, retryAfter, ok := s.signInAttempts.Reserve(ctx, secondStepKey(userID), ""); !ok {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -76,7 +78,7 @@ func (s *Service) reserveSecondStep(ctx context.Context, userID int) error {
 
 func (s *Service) clearSecondStep(ctx context.Context, userID int) {
 	if s.signInAttempts != nil {
-		s.signInAttempts.Reset(context.WithoutCancel(ctx), secondStepKey(userID))
+		s.signInAttempts.Reset(context.WithoutCancel(ctx), secondStepKey(userID), "", SignInLaneName)
 	}
 }
 
