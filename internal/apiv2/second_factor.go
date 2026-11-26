@@ -164,11 +164,14 @@ func registerSecondFactor(reg *Registry) {
 			RetrySafety: RetrySafetyNonRetryable,
 			Class:       ClassProfileScoped, ProfileOptional: true, ServiceBacked: true,
 			RateLimitBucket: bucketPasswordChange,
+			// Demo visitors share one account: a second factor locks the others out.
+			DemoRestricted: true,
 		}
 	}
 	get := account(http.MethodGet, "", "getAccountSecondFactors", "Report the account's two-step sign-in methods.")
 	get.RetrySafety = ""
 	get.RateLimitBucket = ""
+	get.DemoRestricted = false
 	Register(reg, get, reg.getAccountSecondFactors)
 	Register(reg, account(http.MethodPost, "/totp", "beginAccountTOTP", "Start setting up an authenticator app."), reg.beginAccountTOTP)
 	Register(reg, account(http.MethodPost, "/totp/confirm", "confirmAccountTOTP", "Turn the authenticator app on with its first code."), reg.confirmAccountTOTP)
