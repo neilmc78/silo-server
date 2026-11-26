@@ -66312,6 +66312,7 @@
           "account"
         ],
         "x-silo-class": "profile_scoped",
+        "x-silo-demo-restricted": true,
         "x-silo-retry-safety": "non_retryable",
         "x-silo-service-backed": true
       }
@@ -66505,6 +66506,7 @@
           "account"
         ],
         "x-silo-class": "profile_scoped",
+        "x-silo-demo-restricted": true,
         "x-silo-retry-safety": "non_retryable",
         "x-silo-service-backed": true
       }
@@ -66705,6 +66707,7 @@
           "account"
         ],
         "x-silo-class": "profile_scoped",
+        "x-silo-demo-restricted": true,
         "x-silo-retry-safety": "non_retryable",
         "x-silo-service-backed": true
       }
@@ -66898,6 +66901,7 @@
           "account"
         ],
         "x-silo-class": "profile_scoped",
+        "x-silo-demo-restricted": true,
         "x-silo-retry-safety": "non_retryable",
         "x-silo-service-backed": true
       }
@@ -67051,6 +67055,7 @@
           "account"
         ],
         "x-silo-class": "profile_scoped",
+        "x-silo-demo-restricted": true,
         "x-silo-retry-safety": "non_retryable",
         "x-silo-service-backed": true
       }
@@ -67244,6 +67249,7 @@
           "account"
         ],
         "x-silo-class": "profile_scoped",
+        "x-silo-demo-restricted": true,
         "x-silo-retry-safety": "non_retryable",
         "x-silo-service-backed": true
       }
@@ -67430,6 +67436,7 @@
           "account"
         ],
         "x-silo-class": "profile_scoped",
+        "x-silo-demo-restricted": true,
         "x-silo-retry-safety": "non_retryable",
         "x-silo-service-backed": true
       }
