@@ -7,7 +7,8 @@
 #    build. The push starts neilflix-image.yml, which moves :neilflix only if
 #    the image builds.
 #
-# A conflict or a commit pushed to main by hand leaves main alone and opens
+# A conflict only in generated API files is resolved by regenerating them.
+# Any other conflict or a commit pushed to main by hand leaves main alone and opens
 # (or comments on) the issue labelled daily-build. A failed image build is
 # reported by GitHub's own failed-workflow email.
 #
@@ -71,6 +72,17 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      # Used only when generated API files conflict and are regenerated.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Assemble build branch
         id: build
         run: scripts/fork/daily-build.sh
