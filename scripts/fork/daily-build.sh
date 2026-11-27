@@ -10,6 +10,11 @@
 # copy first (step 0), which is how a conflicting branch gets fixed without a
 # force-push by hand.
 #
+# A conflict only in generated API files (GENERATED below) does not stop the
+# build: the fork's side is taken while replaying, and once every branch is
+# replayed the files are regenerated from the combined code and committed.
+# This needs Go and pnpm on PATH.
+#
 # Exit codes: 0 built (or nothing changed), 2 conflict, 3 main changed by hand,
 # 1 anything else.
 #
@@ -97,7 +102,23 @@ done
 out branch "$BUILD"
 
 # 4. Replay each branch's own commits on top of Silo. A commit whose change
-# Silo already has comes out empty and is dropped.
+# Silo already has comes out empty and is dropped. A conflict only in
+# generated files takes the fork's side; step 5 regenerates them.
+GENERATED=(
+  contracts/api/v2/openapi.json
+  contracts/api/v2/route-inventory.json
+  web/src/api/v2/schema.ts
+  web/src/api/v2/operations.ts
+)
+REGEN=0
+only_generated() {
+  local f g ok
+  for f in $1; do
+    ok=0
+    for g in "${GENERATED[@]}"; do [[ $f == "$g" ]] && ok=1; done
+    [[ $ok == 1 ]] || return 1
+  done
+}
 fail_conflict() {
   local b=$1 files=$2
   git cherry-pick --abort 2>/dev/null || true
@@ -122,6 +143,20 @@ for b in "${BRANCHES[@]}"; do
   for c in $(git rev-list --reverse "$base..origin/$b"); do
     if ! git cherry-pick --allow-empty "$c" >/dev/null 2>&1; then
       FILES=$(git diff --name-only --diff-filter=U)
+      if [[ -n $FILES ]] && only_generated "$FILES"; then
+        echo "$b: $(git log -1 --format='%h %s' "$c") conflicts only in generated files; regenerating them after the replay:"
+        echo "$FILES"
+        # shellcheck disable=SC2086 # one path per line, none with spaces
+        git checkout --theirs -- $FILES
+        # shellcheck disable=SC2086
+        git add -- $FILES
+        REGEN=1
+        # An empty result means the fork's side matched; drop it like below.
+        GIT_EDITOR=true git cherry-pick --continue >/dev/null 2>&1 \
+          || git cherry-pick --skip >/dev/null 2>&1 \
+          || fail_conflict "$b" "(cherry-pick of $c failed after taking generated files)"
+        continue
+      fi
       [[ -n $FILES ]] && fail_conflict "$b" "$FILES"
       # Nothing to commit: Silo already has this change.
       git cherry-pick --skip >/dev/null 2>&1 || fail_conflict "$b" "(cherry-pick of $c failed)"
@@ -129,7 +164,28 @@ for b in "${BRANCHES[@]}"; do
   done
 done
 
-# 5. Name the build. GitHub titles the image run after main's newest commit,
+# 5. Regenerate the generated API files when a conflict in them was resolved
+# blindly above, so they match the combined code again.
+if [[ $REGEN == 1 ]]; then
+  echo "regenerating API contract files"
+  mkdir -p web/dist && touch web/dist/.keep # the Go build embeds web/dist
+  if ! { go run ./cmd/apiv2-openapi -out contracts/api/v2/openapi.json \
+    && go run ./cmd/route-inventory -out contracts/api/v2/route-inventory.json \
+    && (cd web && pnpm install --frozen-lockfile --ignore-scripts --silent && pnpm run --silent generate:apiv2); }; then
+    out failure conflict
+    out conflict_branch "(generated files)"
+    { echo "conflict_files<<EOF"; printf '%s\n' "${GENERATED[@]}"; echo "EOF"; } >>"$OUT"
+    echo "generated files conflicted and regenerating them failed" >&2
+    exit 2
+  fi
+  git add -- "${GENERATED[@]}"
+  if ! git diff --cached --quiet; then
+    git commit --quiet -m "build: regenerate the API contract" \
+      -m "Generated files conflicted while replaying the fork branches; these are regenerated from the combined code."
+  fi
+fi
+
+# 6. Name the build. GitHub titles the image run after main's newest commit,
 # which would otherwise be whichever fork commit was replayed last. Empty, so
 # the tree (and the "nothing to ship" check below) is unchanged.
 git commit --quiet --allow-empty \
